@@ -27,6 +27,7 @@ DEFAULT_SYSTEM = (
     "Think of yourself as an advanced version of sed, awk, grep, etc, and as such, you transform the context with the prompt as best you can but you never output anything not asked for."
     "As a rule if you are outputting code, as this is CLI, that means you must avoid ```bash``` type enclosures unless specifically asked for or they were part of the context."
 )
+
 def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None, None]:
     """Read a file in chunks of specified size."""
     with open(file_path, 'r') as file:
@@ -104,25 +105,12 @@ def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_fi
                     files_and_sizes.append((file_path, os.path.getsize(file_path)))
     return files_and_sizes
 
-def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, model: Optional[str] = None) -> Generator[Tuple[str, str, str], None, None]:
+def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, encoder) -> Generator[Tuple[str, str, str], None, None]:
     """Process files in the directory with the given parameters and yield chunks."""
-    if verbose:
-        print(f"directory is {directory}", file=sys.stderr)
-        print(f"context_length is {context_length}", file=sys.stderr)
-        print(f"file_filter is {file_filter}", file=sys.stderr)
-        print(f"verbose is {verbose}", file=sys.stderr)
-        print(f"extensions is {extensions}", file=sys.stderr)
-        print(f"token_count_mode is {token_count_mode}", file=sys.stderr)
-        print(f"model is {model}", file=sys.stderr)
+
 
     gitignore_matchers = load_gitignore_files(directory)
     files_and_sizes = get_files_and_sizes(directory, extensions, file_filter, gitignore_matchers)
-
-    try:
-        encoder = tiktoken.encoding_for_model(model)  # Defaulting to gpt-4 encoder
-    except Exception as e:
-        print(f"Tokenizer for splits: could not load tokenizer for model {model} so using gpt-4", file=sys.stderr)
-        encoder = tiktoken.encoding_for_model('gpt-4')  # Defaulting to gpt-4 encoder
 
     for file_path, file_size in tqdm(files_and_sizes, desc="Processing files", unit="B", unit_scale=True, disable=not verbose):
         start_line = 1
@@ -165,6 +153,7 @@ def main():
     parser.add_argument('-b', '--progress-bar', action='store_true', help='Display a progress bar based on the total bytes of the files processed')
     parser.add_argument('--send-empty', action='store_true', help='Send empty lines with as empty context with the prompt instead of just emitting them back to stdout; no effect if -S is set')
     parser.add_argument('--tc', action='store_true', help='Token count mode: count tokens instead of processing prompts')
+    parser.add_argument('-n', '--max-inference-calls', type=int, help='Maximum number of API calls to make', default=None)
     parser.add_argument('-I', '--input', nargs='*', default=[], help='Input argument; usually read from stdin or provided as additional arguments')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
@@ -193,6 +182,18 @@ def main():
     extensions = args.extensions.split(',') if args.extensions else None
 
     client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=args.base_url)
+
+    try:
+        encoder = tiktoken.encoding_for_model(args.model)
+    except Exception as e:
+        print(f"Tokenizer for splits: could not load tokenizer for model {args.model} so using gpt-4", file=sys.stderr)
+        encoder = tiktoken.encoding_for_model('gpt-4')
+
+    total_api_time = 0.0
+    total_input_tokens = 0
+    total_output_tokens = 0
+    total_api_calls = 0
+
     if args.expand_prompt:
         expand_prompt = args.expand_prompt or (
             "Act as an elite prompt engineer working on an important project. The user is about to call an LLM in a bash pipeline, "
@@ -217,24 +218,38 @@ def main():
         expanded_prompt, _ = call_openai_api(client, args.model, expand_prompt.format(prompt=args.prompt), args.system, args.limit, args.verbose)
         args.prompt = expanded_prompt
 
+    if args.verbose:
+        print(f"directory is {args.directory}", file=sys.stderr)
+        print(f"context_length is {args.context_length}", file=sys.stderr)
+        print(f"file_filter is {args.filter}", file=sys.stderr)
+        print(f"verbose is {args.verbose}", file=sys.stderr)
+        print(f"extensions is {extensions}", file=sys.stderr)
+        print(f"token_count_mode is {args.tc}", file=sys.stderr)
+        print(f"model is {args.model}", file=sys.stderr)
 
     if args.directory:
         for file_path, start_line, chunk in process_files(
             directory=args.directory,
-            model=args.model,
             context_length=args.context_length,
             extensions=extensions,
             file_filter=args.filter,
             verbose=args.verbose,
-            token_count_mode=args.tc
+            token_count_mode=args.tc,
+            encoder=encoder
         ):
             if args.verbose:
                 print(f"Input Processing: file_path: {file_path}, start_line: {start_line}, chunk: {chunk}", file=sys.stderr)
             if '{context}' not in args.prompt:
                 args.prompt += ' | Context: {context}'
             prompt = args.prompt.format(filename=file_path, startline=start_line, context=chunk)
-            response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+            total_api_time += elapsed_time
+            total_input_tokens += count_tokens(prompt, encoder)
+            total_output_tokens += count_tokens(response, encoder)
+            total_api_calls += 1
             print(response)
+            if args.max_inference_calls and total_api_calls >= args.max_inference_calls:
+                break
     else:
         if sys.stdin.isatty():
             try:
@@ -245,24 +260,42 @@ def main():
                         if '{context}' not in args.prompt and stdin_content.strip():
                             args.prompt += ' | Context: {context}'
                         prompt = args.prompt.format(context=stdin_content.strip())
-                        response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                        response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                        total_api_time += elapsed_time
+                        total_input_tokens += count_tokens(prompt, encoder)
+                        total_output_tokens += count_tokens(response, encoder)
+                        total_api_calls += 1
                         print(response)
                     else:
                         for line in stdin_content.splitlines():
                             if '{context}' not in args.prompt and line.strip():
                                 args.prompt += ' | Context: {context}'
                             prompt = args.prompt.format(context=line.strip())
-                            response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                            total_api_time += elapsed_time
+                            total_input_tokens += count_tokens(prompt, encoder)
+                            total_output_tokens += count_tokens(response, encoder)
+                            total_api_calls += 1
                             print(response)
+                            if args.max_inference_calls and total_api_calls >= args.max_inference_calls:
+                                break
                 else:
                     context = ''
                     prompt = args.prompt.format(context=context)
-                    response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    total_api_time += elapsed_time
+                    total_input_tokens += count_tokens(prompt, encoder)
+                    total_output_tokens += count_tokens(response, encoder)
+                    total_api_calls += 1
                     print(response)
             except select.error:
                 context = ''
                 prompt = args.prompt.format(context=context)
-                response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                total_api_time += elapsed_time
+                total_input_tokens += count_tokens(prompt, encoder)
+                total_output_tokens += count_tokens(response, encoder)
+                total_api_calls += 1
                 print(response)
         else:
             # Blocking read from pipe
@@ -271,7 +304,11 @@ def main():
                 if '{context}' not in args.prompt and stdin_content.strip():
                     args.prompt += ' | Context: {context}'
                 prompt = args.prompt.format(context=stdin_content.strip())
-                response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                total_api_time += elapsed_time
+                total_input_tokens += count_tokens(prompt, encoder)
+                total_output_tokens += count_tokens(response, encoder)
+                total_api_calls += 1
                 print(response)
             else:
                 for line in stdin_content.splitlines():
@@ -281,9 +318,23 @@ def main():
                     if '{context}' not in args.prompt and line.strip():
                         args.prompt += ' | Context: {context}'
                     prompt = args.prompt.format(context=line.strip())
-                    response, _ = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    total_api_time += elapsed_time
+                    total_input_tokens += count_tokens(prompt, encoder)
+                    total_output_tokens += count_tokens(response, encoder)
+                    total_api_calls += 1
                     print(response)
+                    if args.max_inference_calls and total_api_calls >= args.max_inference_calls:
+                        break
+
+    if args.stats:
+        print("\n---- Stats ----", file=sys.stderr)
+        print(f"Total execution time (API calls): {total_api_time:.2f} seconds", file=sys.stderr)
+        print(f"Total input tokens: {total_input_tokens}", file=sys.stderr)
+        print(f"Total output tokens: {total_output_tokens}", file=sys.stderr)
+        print(f"Input tokens/sec: {total_input_tokens / total_api_time:.2f}", file=sys.stderr)
+        print(f"Output tokens/sec: {total_output_tokens / total_api_time:.2f}", file=sys.stderr)
+        print(f"Total API calls made: {total_api_calls}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
-
