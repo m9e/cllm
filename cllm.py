@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-# ca: (c)ommand-line (a)nalyzer
-# example:
-# ca -p 'You are a coding assistant. You are reading 10s of thousands of lines of code. For each chunk of code you will identify any class, method, function, and you will rate it on a scale of 1-3 where 1 is perfect use of type declarations; 2 means types are used but Any is used; 3 means types are used but there are some things missing types; 4 means many/all things are missing typing. After each chunk of code you will output ONLY the score first, then a string of filename:classname:method or filename:function, the starting line of the code chunk if we supply it, and up to 60 characters of explanation about why that rating. Do not output code or more than the 60 characters. Do not output more than 1 line and the newline for each method or function. Each output (for each method or function) should be exactly that one line of code with no linebreaks until after your 60 characters. This is filename {filename} and starts at line {startline}. Here is the code:\n\n{context}' -c 16384 code_folder -v --stats > ca_analysis.txt 2>ca_debug.txt
+# cllm: (c)ommand-line (llm) access
 
-# (c) Copyright Matthew Wallace 2024; Licensed under Apache-2.0 Text version: https://www.apache.org/licenses/LICENSE-2.0.txt
+# For examples see https://github.com/m9e/cllm notebook
+
+# (c) Copyright Matthew Wallace 2024; Licensed under Apache-2.0 Text version: https://www.apache.org/licenses/LICENSE-2.0.txt (see LICENSE)
 
 import os
 import sys
