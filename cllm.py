@@ -42,26 +42,39 @@ def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None,
                 break
             yield ''.join(lines).strip()
 
-def is_file_ignored_by_gitignore(file_path: str, gitignore_matchers: List) -> bool:
-    """Check if a file is ignored by any .gitignore matcher."""
-    return any(matcher(file_path) for matcher in gitignore_matchers)
+def resolve_and_normalize_path(path: str) -> str:
+    """Resolve and normalize the given path."""
+    return os.path.realpath(os.path.abspath(path))
 
-def load_gitignore_files(directory: str) -> List:
-    """Load .gitignore files from the directory and its parents."""
-    gitignore_matchers = []
-    current_dir = directory
+def load_gitignore_files(directory: str) -> dict:
+    """Load .gitignore files from the directory and its parents, mapping them to their directories."""
+    gitignore_map = {}
+    normalized_directory = resolve_and_normalize_path(directory)
+    
+    current_dir = normalized_directory
     while current_dir != os.path.dirname(current_dir):  # Stop at the root directory
         gitignore_path = os.path.join(current_dir, '.gitignore')
         if os.path.exists(gitignore_path):
-            gitignore_matchers.append(parse_gitignore(gitignore_path))
+            gitignore_map[current_dir] = parse_gitignore(gitignore_path)
         current_dir = os.path.dirname(current_dir)
 
     # Check the current working directory's .gitignore
-    cwd_gitignore_path = os.path.join(os.getcwd(), '.gitignore')
-    if os.path.exists(cwd_gitignore_path):
-        gitignore_matchers.append(parse_gitignore(cwd_gitignore_path))
+    cwd_gitignore_path = resolve_and_normalize_path(os.path.join(os.getcwd(), '.gitignore'))
+    if os.path.exists(cwd_gitignore_path) and cwd_gitignore_path.startswith(normalized_directory):
+        gitignore_map[os.getcwd()] = parse_gitignore(cwd_gitignore_path)
 
-    return gitignore_matchers
+    return gitignore_map
+
+def is_file_ignored_by_gitignore(file_path: str, gitignore_map: dict) -> bool:
+    """Check if a file is ignored by any .gitignore matcher based on its directory."""
+    normalized_file_path = resolve_and_normalize_path(file_path)
+    for directory, matcher in gitignore_map.items():
+        try:
+            if matcher(normalized_file_path):
+                return True
+        except ValueError as e:
+            print(f"Error checking file '{normalized_file_path}' against .gitignore in '{directory}': {e}", file=sys.stderr)
+    return False
 
 def call_openai_api(client, model: str, prompt: str, system_message: Optional[str] = None, limit: Optional[int] = None, verbose: bool = False) -> Tuple[str, float]:
     """Call the OpenAI API with the given parameters."""
@@ -92,7 +105,7 @@ def count_tokens(text: str, encoder) -> int:
     """Count the number of tokens in the given text using the specified encoder."""
     return len(encoder.encode(text))
 
-def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_filter: Optional[str], gitignore_matchers: List) -> List[Tuple[str, int]]:
+def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_filter: Optional[str], gitignore_map: dict) -> List[Tuple[str, int]]:
     """Get a list of files and their sizes in the directory."""
     files_and_sizes = []
     for root, _, files in os.walk(directory):
@@ -101,16 +114,14 @@ def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_fi
                 if file_filter and file_filter not in os.path.join(root, file):
                     continue
                 file_path = os.path.join(root, file)
-                if not is_file_ignored_by_gitignore(file_path, gitignore_matchers):
+                if not is_file_ignored_by_gitignore(file_path, gitignore_map):
                     files_and_sizes.append((file_path, os.path.getsize(file_path)))
     return files_and_sizes
 
-def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, encoder) -> Generator[Tuple[str, str, str], None, None]:
+def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, encoder, gitignore_map: dict) -> Generator[Tuple[str, str, str], None, None]:
     """Process files in the directory with the given parameters and yield chunks."""
 
-
-    gitignore_matchers = load_gitignore_files(directory)
-    files_and_sizes = get_files_and_sizes(directory, extensions, file_filter, gitignore_matchers)
+    files_and_sizes = get_files_and_sizes(directory, extensions, file_filter, gitignore_map)
 
     for file_path, file_size in tqdm(files_and_sizes, desc="Processing files", unit="B", unit_scale=True, disable=not verbose):
         start_line = 1
@@ -228,6 +239,7 @@ def main():
         print(f"model is {args.model}", file=sys.stderr)
 
     if args.directory:
+        gitignore_map = load_gitignore_files(args.directory)
         for file_path, start_line, chunk in process_files(
             directory=args.directory,
             context_length=args.context_length,
@@ -235,7 +247,8 @@ def main():
             file_filter=args.filter,
             verbose=args.verbose,
             token_count_mode=args.tc,
-            encoder=encoder
+            encoder=encoder,
+            gitignore_map=gitignore_map
         ):
             if args.verbose:
                 print(f"Input Processing: file_path: {file_path}, start_line: {start_line}, chunk: {chunk}", file=sys.stderr)
