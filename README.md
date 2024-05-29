@@ -6,6 +6,8 @@ coming shortly
 
 ## Usage
 
+See [examples in Notebook form](sample_usage.ipynb)
+
 ```
 mikoshi:cllm matt$ cllm -h
 usage: cllm [-h] [-d DIRECTORY] [-p PROMPT] [-c CONTEXT_LENGTH] [-s SUMMARY] [-m MODEL] [--system SYSTEM] [-f FILTER] [--stats] [-v] [-e EXTENSIONS]
