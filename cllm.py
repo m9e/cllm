@@ -29,7 +29,15 @@ DEFAULT_SYSTEM = (
 )
 
 def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None, None]:
-    """Read a file in chunks of specified size."""
+    """Read a file in chunks of specified size.
+    
+    Args:
+        file_path (str): The path to the file to read.
+        chunk_size (int): The number of lines to read per chunk.
+    
+    Yields:
+        Generator[str, None, None]: A generator yielding chunks of the file as strings.
+    """
     with open(file_path, 'r') as file:
         while True:
             lines = []
@@ -43,11 +51,25 @@ def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None,
             yield ''.join(lines).strip()
 
 def resolve_and_normalize_path(path: str) -> str:
-    """Resolve and normalize the given path."""
+    """Resolve and normalize the given path.
+    
+    Args:
+        path (str): The path to resolve and normalize.
+    
+    Returns:
+        str: The resolved and normalized path.
+    """
     return os.path.realpath(os.path.abspath(path))
 
 def load_gitignore_files(directory: str) -> dict:
-    """Load .gitignore files from the directory and its parents, mapping them to their directories."""
+    """Load .gitignore files from the directory and its parents, mapping them to their directories.
+    
+    Args:
+        directory (str): The directory to start loading .gitignore files from.
+    
+    Returns:
+        dict: A dictionary mapping directories to their .gitignore matchers.
+    """
     gitignore_map = {}
     normalized_directory = resolve_and_normalize_path(directory)
     
@@ -66,7 +88,15 @@ def load_gitignore_files(directory: str) -> dict:
     return gitignore_map
 
 def is_file_ignored_by_gitignore(file_path: str, gitignore_map: dict) -> bool:
-    """Check if a file is ignored by any .gitignore matcher based on its directory."""
+    """Check if a file is ignored by any .gitignore matcher based on its directory.
+    
+    Args:
+        file_path (str): The path to the file to check.
+        gitignore_map (dict): A dictionary mapping directories to their .gitignore matchers.
+    
+    Returns:
+        bool: True if the file is ignored, False otherwise.
+    """
     normalized_file_path = resolve_and_normalize_path(file_path)
     for directory, matcher in gitignore_map.items():
         try:
@@ -77,7 +107,19 @@ def is_file_ignored_by_gitignore(file_path: str, gitignore_map: dict) -> bool:
     return False
 
 def call_openai_api(client, model: str, prompt: str, system_message: Optional[str] = None, limit: Optional[int] = None, verbose: bool = False) -> Tuple[str, float]:
-    """Call the OpenAI API with the given parameters."""
+    """Call the OpenAI API with the given parameters.
+    
+    Args:
+        client: The OpenAI client.
+        model (str): The model to use for the API call.
+        prompt (str): The user prompt.
+        system_message (Optional[str]): The system message to use.
+        limit (Optional[int]): The maximum number of tokens to generate.
+        verbose (bool): Whether to print verbose output.
+    
+    Returns:
+        Tuple[str, float]: The response content and the elapsed time for the API call.
+    """
     messages = []
     if system_message:
         messages.append({"role": "system", "content": system_message})
@@ -102,11 +144,29 @@ def call_openai_api(client, model: str, prompt: str, system_message: Optional[st
     return response.choices[0].message.content, elapsed_time
 
 def count_tokens(text: str, encoder) -> int:
-    """Count the number of tokens in the given text using the specified encoder."""
+    """Count the number of tokens in the given text using the specified encoder.
+    
+    Args:
+        text (str): The text to count tokens in.
+        encoder: The encoder to use for counting tokens.
+    
+    Returns:
+        int: The number of tokens in the text.
+    """
     return len(encoder.encode(text))
 
 def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_filter: Optional[str], gitignore_map: dict) -> List[Tuple[str, int]]:
-    """Get a list of files and their sizes in the directory."""
+    """Get a list of files and their sizes in the directory.
+    
+    Args:
+        directory (str): The directory to search for files.
+        extensions (Optional[List[str]]): A list of file extensions to include.
+        file_filter (Optional[str]): A string to filter files by.
+        gitignore_map (dict): A dictionary mapping directories to their .gitignore matchers.
+    
+    Returns:
+        List[Tuple[str, int]]: A list of tuples containing file paths and their sizes.
+    """
     files_and_sizes = []
     for root, _, files in os.walk(directory):
         for file in files:
@@ -119,8 +179,21 @@ def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_fi
     return files_and_sizes
 
 def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, encoder, gitignore_map: dict) -> Generator[Tuple[str, str, str], None, None]:
-    """Process files in the directory with the given parameters and yield chunks."""
-
+    """Process files in the directory with the given parameters and yield chunks.
+    
+    Args:
+        directory (str): The directory to process files in.
+        context_length (int): The context length for splitting files/input.
+        extensions (Optional[List[str]]): A list of file extensions to include.
+        file_filter (Optional[str]): A string to filter files by.
+        verbose (bool): Whether to print verbose output.
+        token_count_mode (bool): Whether to count tokens instead of processing prompts.
+        encoder: The encoder to use for counting tokens.
+        gitignore_map (dict): A dictionary mapping directories to their .gitignore matchers.
+    
+    Yields:
+        Generator[Tuple[str, str, str], None, None]: A generator yielding tuples of file path, start line, and chunk.
+    """
     files_and_sizes = get_files_and_sizes(directory, extensions, file_filter, gitignore_map)
 
     for file_path, file_size in tqdm(files_and_sizes, desc="Processing files", unit="B", unit_scale=True, disable=not verbose):
@@ -144,6 +217,7 @@ def process_files(directory: str, context_length: int, extensions: Optional[List
             yield file_path, start_line, chunk
 
 def main():
+    """Main function to parse arguments and process files or stdin."""
     parser = argparse.ArgumentParser(description="Composable command-line interactions with LLM APIs")
     parser.add_argument('-d', '--directory', help='Directory to process')
     parser.add_argument('-p', '--prompt', help='User prompt')
@@ -316,13 +390,32 @@ def main():
             if args.single_string_stdin:
                 if '{context}' not in args.prompt and stdin_content.strip():
                     args.prompt += ' | Context: {context}'
-                prompt = args.prompt.format(context=stdin_content.strip())
-                response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
-                total_api_time += elapsed_time
-                total_input_tokens += count_tokens(prompt, encoder)
-                total_output_tokens += count_tokens(response, encoder)
-                total_api_calls += 1
-                print(response)
+                context = stdin_content.strip()
+                while context:
+                    # Tokenize the context to ensure it doesn't exceed the context length
+                    tokenized_context = encoder.encode(context)
+                    if len(tokenized_context) > args.context_length:
+                        split_point = args.context_length
+                        while split_point > 0 and tokenized_context[split_point] != ' ':
+                            split_point -= 1
+                        if split_point == 0:
+                            split_point = args.context_length
+                        chunk_to_send = encoder.decode(tokenized_context[:split_point])
+                        remaining = encoder.decode(tokenized_context[split_point:])
+                    else:
+                        chunk_to_send = context
+                        remaining = ''
+                    
+                    prompt = args.prompt.format(context=chunk_to_send)
+                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    total_api_time += elapsed_time
+                    total_input_tokens += count_tokens(prompt, encoder)
+                    total_output_tokens += count_tokens(response, encoder)
+                    total_api_calls += 1
+                    print(response)
+                    context = remaining
+                    if args.max_inference_calls and total_api_calls >= args.max_inference_calls:
+                        break
             else:
                 for line in stdin_content.splitlines():
                     if not args.send_empty and not line.strip():
