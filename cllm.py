@@ -223,7 +223,7 @@ def main():
     parser.add_argument('-p', '--prompt', help='User prompt')
     parser.add_argument('-c', '--context-length', type=int, default=4096, help='Context length for splitting files/input')
     parser.add_argument('-s', '--summary', help='Summary prompt')
-    parser.add_argument('-m', '--model', default='gpt-4o', help='Model name')
+    parser.add_argument('-m', '--model', default='gpt-4o', help='Model name; or deployment for Azure OpenAI')
     parser.add_argument('--system', help='System message')
     parser.add_argument('-f', '--filter', help='Filter files by string in path')
     parser.add_argument('--stats', action='store_true', help='Print statistics')
@@ -240,6 +240,7 @@ def main():
     parser.add_argument('--tc', action='store_true', help='Token count mode: count tokens instead of processing prompts')
     parser.add_argument('-n', '--max-inference-calls', type=int, help='Maximum number of API calls to make', default=None)
     parser.add_argument('-I', '--input', nargs='*', default=[], help='Input argument; usually read from stdin or provided as additional arguments')
+    parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure"')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
 
@@ -266,7 +267,29 @@ def main():
     
     extensions = args.extensions.split(',') if args.extensions else None
 
-    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'), base_url=args.base_url)
+    # Determine API key and base URL
+    if args.mode == 'azure' or os.getenv('OPENAI_API_TYPE') == 'azure' or (not os.getenv('OPENAI_API_KEY') and os.getenv('AZURE_OPENAI_API_KEY')):
+        # Load environment variables
+        from openai import AzureOpenAI
+        
+        client = AzureOpenAI(
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
+            api_version="2023-12-01-preview",
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        )
+    else:
+        base_url = args.base_url or os.getenv('OPENAI_API_BASE') or None
+
+        client_params = {
+            'api_key': os.getenv('OPENAI_API_KEY')
+        }
+        if base_url:
+            client_params['base_url'] = base_url
+
+        if 'base_url' in client_params:
+            client = openai.OpenAI(api_key=client_params['api_key'], base_url=client_params['base_url'])
+        else:
+            client = openai.OpenAI(api_key=client_params['api_key'])
 
     try:
         encoder = tiktoken.encoding_for_model(args.model)
