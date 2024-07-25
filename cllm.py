@@ -168,6 +168,8 @@ def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_fi
         List[Tuple[str, int]]: A list of tuples containing file paths and their sizes.
     """
     files_and_sizes = []
+    visited_inodes = set()  # To keep track of visited inodes to prevent infinite loops
+
     for root, _, files in os.walk(directory):
         for file in files:
             if any(file.endswith(ext) for ext in extensions):
@@ -175,7 +177,16 @@ def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_fi
                     continue
                 file_path = os.path.join(root, file)
                 if not is_file_ignored_by_gitignore(file_path, gitignore_map):
-                    files_and_sizes.append((file_path, os.path.getsize(file_path)))
+                    try:
+                        inode = os.stat(file_path).st_ino
+                        if inode in visited_inodes:
+                            continue  # Skip files that have already been visited
+                        visited_inodes.add(inode)
+                        files_and_sizes.append((file_path, os.path.getsize(file_path)))
+                    except OSError as e:
+                        print(f"Error accessing file {file_path}: {e}", file=sys.stderr)
+                        continue  # Skip files that cause an OSError
+
     return files_and_sizes
 
 def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, encoder, gitignore_map: dict) -> Generator[Tuple[str, str, str], None, None]:
