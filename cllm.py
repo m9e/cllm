@@ -17,6 +17,7 @@ import time
 import json
 from tqdm import tqdm
 from typing import List, Optional, Generator, Tuple
+import pyperclip
 
 DEFAULT_SYSTEM = (
     "You are an AI used to do thing in a command line pipeline. "
@@ -252,6 +253,7 @@ def main():
     parser.add_argument('-n', '--max-inference-calls', type=int, help='Maximum number of API calls to make', default=None)
     parser.add_argument('-I', '--input', nargs='*', default=[], help='Input argument; usually read from stdin or provided as additional arguments')
     parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure"')
+    parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
 
@@ -276,6 +278,10 @@ def main():
         print("Error: If -d is passed, stdin should not be used.", file=sys.stderr)
         sys.exit(1)
     
+    if args.clipboard and not sys.stdin.isatty():
+        print("Error: If -C is passed, stdin should not be used.", file=sys.stderr)
+        sys.exit(1)
+
     extensions = args.extensions.split(',') if args.extensions else None
 
     # Determine API key and base URL
@@ -372,7 +378,18 @@ def main():
             if args.max_inference_calls and total_api_calls >= args.max_inference_calls:
                 break
     else:
-        if sys.stdin.isatty():
+        if args.clipboard:
+            context = pyperclip.paste()
+            if '{context}' not in args.prompt and context.strip():
+                args.prompt += ' | Context: {context}'
+            prompt = args.prompt.format(context=context.strip())
+            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+            total_api_time += elapsed_time
+            total_input_tokens += count_tokens(prompt, encoder)
+            total_output_tokens += count_tokens(response, encoder)
+            total_api_calls += 1
+            print(response)
+        elif sys.stdin.isatty():
             try:
                 rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
                 if rlist:
