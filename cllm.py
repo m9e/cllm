@@ -240,6 +240,7 @@ def main():
     parser.add_argument('-f', '--filter', help='Filter files by string in path')
     parser.add_argument('--stats', action='store_true', help='Print statistics')
     parser.add_argument('-v', '--verbose', action='store_true', help='Print raw request, response, params to stderr')
+    parser.add_argument('-vv', '--very-verbose', action='store_true', help='Enable verbose and very verbose mode')
     parser.add_argument('-e', '--extensions', help='Comma-separated list of file extensions to process')
     parser.add_argument('-l', '--limit', type=int, help='Limit output tokens')
     parser.add_argument('-B', '--base-url', help='(Optional) Base URL for OpenAI-compatible API, defaults to the standard OpenAI API endpoint')
@@ -256,6 +257,13 @@ def main():
     parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
+
+    # Set verbose and very_verbose flags
+    if args.very_verbose:
+        args.verbose = True
+        very_verbose = True
+    else:
+        very_verbose = False
 
     if args.prompt and args.inline_prompt:
         print("Error: pass -p prompt or inline-prompt, not both", file=sys.stderr)
@@ -285,7 +293,16 @@ def main():
     extensions = args.extensions.split(',') if args.extensions else None
 
     # Determine API key and base URL
-    if args.mode == 'azure' or os.getenv('OPENAI_API_TYPE') == 'azure' or (not os.getenv('OPENAI_API_KEY') and os.getenv('AZURE_OPENAI_API_KEY')):
+    if args.base_url and args.mode != 'azure' and not args.base_url.lower().endswith(('azure.com', 'microsoft.com')):
+        # User specified a non-Azure base URL, use vanilla OpenAI mode
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key and not args.base_url.lower().endswith('openai.com'):
+            api_key = 'NO_KEY_SUPPLIED'
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url=args.base_url
+        )
+    elif args.mode == 'azure' or os.getenv('OPENAI_API_TYPE') == 'azure' or (not os.getenv('OPENAI_API_KEY') and os.getenv('AZURE_OPENAI_API_KEY')):
         # Load environment variables
         from openai import AzureOpenAI
         
@@ -295,29 +312,13 @@ def main():
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
         )
     else:
-        base_url = args.base_url or os.getenv('OPENAI_API_BASE') or None
+        base_url = os.getenv('OPENAI_API_BASE') or None
+        api_key = os.getenv('OPENAI_API_KEY')
 
-        client_params = {
-            'api_key': os.getenv('OPENAI_API_KEY')
-        }
         if base_url:
-            client_params['base_url'] = base_url
-
-        if 'base_url' in client_params:
-            client = openai.OpenAI(api_key=client_params['api_key'], base_url=client_params['base_url'])
+            client = openai.OpenAI(api_key=api_key, base_url=base_url)
         else:
-            client = openai.OpenAI(api_key=client_params['api_key'])
-
-    try:
-        encoder = tiktoken.encoding_for_model(args.model)
-    except Exception as e:
-        print(f"Tokenizer for splits: could not load tokenizer for model {args.model} so using gpt-4", file=sys.stderr)
-        encoder = tiktoken.encoding_for_model('gpt-4')
-
-    total_api_time = 0.0
-    total_input_tokens = 0
-    total_output_tokens = 0
-    total_api_calls = 0
+            client = openai.OpenAI(api_key=api_key)
 
     if args.expand_prompt:
         expand_prompt = args.expand_prompt or (
@@ -342,6 +343,18 @@ def main():
         )
         expanded_prompt, _ = call_openai_api(client, args.model, expand_prompt.format(prompt=args.prompt), args.system, args.limit, args.verbose)
         args.prompt = expanded_prompt
+
+    try:
+        encoder = tiktoken.encoding_for_model(args.model)
+    except Exception as e:
+        print(f"Tokenizer for splits: could not load tokenizer for model {args.model} so using gpt-4; reducing context length by 5% to prevent overflows", file=sys.stderr)
+        encoder = tiktoken.encoding_for_model('gpt-4')
+        args.context_length = int(args.context_length * 0.95)
+
+    total_api_time = 0.0
+    total_input_tokens = 0
+    total_output_tokens = 0
+    total_api_calls = 0
 
     if args.verbose:
         print(f"directory is {args.directory}", file=sys.stderr)
