@@ -290,6 +290,9 @@ def main():
         print("Error: If -C is passed, stdin should not be used.", file=sys.stderr)
         sys.exit(1)
 
+    if not args.base_url and os.getenv('CLLM_BASE_URL'):
+        args.base_url = os.getenv('CLLM_BASE_URL')
+
     extensions = args.extensions.split(',') if args.extensions else None
 
     # Determine API key and base URL
