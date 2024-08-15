@@ -235,7 +235,7 @@ def main():
     parser.add_argument('-p', '--prompt', help='User prompt')
     parser.add_argument('-c', '--context-length', type=int, default=4096, help='Context length for splitting files/input')
     parser.add_argument('-s', '--summary', help='Summary prompt')
-    parser.add_argument('-m', '--model', default='gpt-4o', help='Model name; or deployment for Azure OpenAI')
+    parser.add_argument('-m', '--model', default='gpt-4o-2024-08-06', help='Model name; or deployment for Azure OpenAI')
     parser.add_argument('--system', help='System message')
     parser.add_argument('-f', '--filter', help='Filter files by string in path')
     parser.add_argument('--stats', action='store_true', help='Print statistics')
