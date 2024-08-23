@@ -107,7 +107,7 @@ def is_file_ignored_by_gitignore(file_path: str, gitignore_map: dict) -> bool:
             print(f"Error checking file '{normalized_file_path}' against .gitignore in '{directory}': {e}", file=sys.stderr)
     return False
 
-def call_openai_api(client, model: str, prompt: str, system_message: Optional[str] = None, limit: Optional[int] = None, verbose: bool = False) -> Tuple[str, float]:
+def call_openai_api(client, model: str, prompt: str, system_message: Optional[str] = None, limit: Optional[int] = None, temperature: Optional[float] = None, verbose: bool = False) -> Tuple[str, float]:
     """Call the OpenAI API with the given parameters.
     
     Args:
@@ -116,6 +116,7 @@ def call_openai_api(client, model: str, prompt: str, system_message: Optional[st
         prompt (str): The user prompt.
         system_message (Optional[str]): The system message to use.
         limit (Optional[int]): The maximum number of tokens to generate.
+        temperature (Optional[float]): The sampling temperature to use.
         verbose (bool): Whether to print verbose output.
     
     Returns:
@@ -127,16 +128,38 @@ def call_openai_api(client, model: str, prompt: str, system_message: Optional[st
     else:
         messages.append({"role": "system", "content": DEFAULT_SYSTEM})
     messages.append({"role": "user", "content": prompt})
-
     if verbose:
         print(f"Raw request:\nModel: {model}\nMessages: {json.dumps(messages, indent=2)}\n", file=sys.stderr)
+        print(f"Parameters:\nLimit: {limit}\nTemperature: {temperature}\n", file=sys.stderr)
 
     start_time = time.time()
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        max_tokens=limit
-    )
+    
+    # Call the API with conditional parameters
+    if limit is not None and temperature is not None:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=limit,
+            temperature=temperature
+        )
+    elif limit is not None:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=limit
+        )
+    elif temperature is not None:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature
+        )
+    else:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages
+        )
+    
     elapsed_time = time.time() - start_time
 
     if verbose:
@@ -227,34 +250,34 @@ def process_files(directory: str, context_length: int, extensions: Optional[List
                 chunk = remaining
         if chunk:
             yield file_path, start_line, chunk
-
 def main():
     """Main function to parse arguments and process files or stdin."""
     parser = argparse.ArgumentParser(description="Composable command-line interactions with LLM APIs")
     parser.add_argument('-d', '--directory', help='Directory to process')
     parser.add_argument('-p', '--prompt', help='User prompt')
-    parser.add_argument('-c', '--context-length', type=int, default=4096, help='Context length for splitting files/input')
+    parser.add_argument('-c', '--context-length', type=int, default=4096, help='Context length for splitting files/input (default: 4096)')
     parser.add_argument('-s', '--summary', help='Summary prompt')
-    parser.add_argument('-m', '--model', default='gpt-4o-2024-08-06', help='Model name; or deployment for Azure OpenAI')
+    parser.add_argument('-m', '--model', help='Model name; or deployment for Azure OpenAI (default: gpt-4o-2024-08-06 or "model" if -B is set)')
     parser.add_argument('--system', help='System message')
     parser.add_argument('-f', '--filter', help='Filter files by string in path')
     parser.add_argument('--stats', action='store_true', help='Print statistics')
     parser.add_argument('-v', '--verbose', action='store_true', help='Print raw request, response, params to stderr')
     parser.add_argument('-vv', '--very-verbose', action='store_true', help='Enable verbose and very verbose mode')
     parser.add_argument('-e', '--extensions', help='Comma-separated list of file extensions to process')
-    parser.add_argument('-l', '--limit', type=int, help='Limit output tokens')
+    parser.add_argument('-l', '--limit', type=int, default=1024, help='Limit output tokens (default: 1024)')
     parser.add_argument('-B', '--base-url', help='(Optional) Base URL for OpenAI-compatible API, defaults to the standard OpenAI API endpoint')
     parser.add_argument('--expand-prompt', help='Prompt for prompt expansion, passed without the input to let the LLM craft a better prompt')
     parser.add_argument('-x', action='store_true', help='Expand the user prompt by pre-processing it with an LLM to try optimizing the result')
-    parser.add_argument('-S', '--single-string-stdin', action='store_true', default=False, help='Treat all stdin as a single string instead of prompting with each line')
+    parser.add_argument('-S', '--single-string-stdin', action='store_true', default=False, help='Treat all stdin as a single string instead of prompting with each line (default: False)')
     parser.add_argument('-o', '--overlap', type=int, help='Number of bytes to include before the split if the chunk is larger than the context')
     parser.add_argument('-b', '--progress-bar', action='store_true', help='Display a progress bar based on the total bytes of the files processed')
     parser.add_argument('--send-empty', action='store_true', help='Send empty lines with as empty context with the prompt instead of just emitting them back to stdout; no effect if -S is set')
     parser.add_argument('--tc', action='store_true', help='Token count mode: count tokens instead of processing prompts')
-    parser.add_argument('-n', '--max-inference-calls', type=int, help='Maximum number of API calls to make', default=None)
-    parser.add_argument('-I', '--input', nargs='*', default=[], help='Input argument; usually read from stdin or provided as additional arguments')
-    parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure"')
+    parser.add_argument('-n', '--max-inference-calls', type=int, default=None, help='Maximum number of API calls to make (default: None)')
+    parser.add_argument('-I', '--input', nargs='*', default=[], help='Input argument; usually read from stdin or provided as additional arguments (default: [])')
+    parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure" (default: default)')
     parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard')
+    parser.add_argument('-t', '--temperature', type=float, help='Temperature for the model')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
 
@@ -290,8 +313,21 @@ def main():
         print("Error: If -C is passed, stdin should not be used.", file=sys.stderr)
         sys.exit(1)
 
+    if args.temperature is not None:
+        try:
+            args.temperature = float(args.temperature)
+        except ValueError:
+            print("Error: Temperature must be a number.", file=sys.stderr)
+            sys.exit(1)
+
     if not args.base_url and os.getenv('CLLM_BASE_URL'):
         args.base_url = os.getenv('CLLM_BASE_URL')
+
+    if not args.model:
+        if args.base_url:
+            args.model = 'model'
+        else:
+            args.model = 'gpt-4o-2024-08-06'
 
     extensions = args.extensions.split(',') if args.extensions else None
 
@@ -344,7 +380,7 @@ def main():
             "save lives. If you fail, innocent people may suffer grievous harm, so it is critical for you to succeed, and for the LLM to succeed, and you should "
             "do your absolute best. Here is the prompt, with a single space after the colon and no other formatting: {prompt}"
         )
-        expanded_prompt, _ = call_openai_api(client, args.model, expand_prompt.format(prompt=args.prompt), args.system, args.limit, args.verbose)
+        expanded_prompt, _ = call_openai_api(client, args.model, expand_prompt.format(prompt=args.prompt), args.system, args.limit, args.temperature, args.verbose)
         args.prompt = expanded_prompt
 
     try:
@@ -385,7 +421,7 @@ def main():
             if '{context}' not in args.prompt:
                 args.prompt += ' | Context: {context}'
             prompt = args.prompt.format(filename=file_path, startline=start_line, context=chunk)
-            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
             total_api_time += elapsed_time
             total_input_tokens += count_tokens(prompt, encoder)
             total_output_tokens += count_tokens(response, encoder)
@@ -399,7 +435,7 @@ def main():
             if '{context}' not in args.prompt and context.strip():
                 args.prompt += ' | Context: {context}'
             prompt = args.prompt.format(context=context.strip())
-            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
             total_api_time += elapsed_time
             total_input_tokens += count_tokens(prompt, encoder)
             total_output_tokens += count_tokens(response, encoder)
@@ -414,7 +450,7 @@ def main():
                         if '{context}' not in args.prompt and stdin_content.strip():
                             args.prompt += ' | Context: {context}'
                         prompt = args.prompt.format(context=stdin_content.strip())
-                        response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                        response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
                         total_api_time += elapsed_time
                         total_input_tokens += count_tokens(prompt, encoder)
                         total_output_tokens += count_tokens(response, encoder)
@@ -425,7 +461,7 @@ def main():
                             if '{context}' not in args.prompt and line.strip():
                                 args.prompt += ' | Context: {context}'
                             prompt = args.prompt.format(context=line.strip())
-                            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
                             total_api_time += elapsed_time
                             total_input_tokens += count_tokens(prompt, encoder)
                             total_output_tokens += count_tokens(response, encoder)
@@ -436,7 +472,7 @@ def main():
                 else:
                     context = ''
                     prompt = args.prompt.format(context=context)
-                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
                     total_api_time += elapsed_time
                     total_input_tokens += count_tokens(prompt, encoder)
                     total_output_tokens += count_tokens(response, encoder)
@@ -445,7 +481,7 @@ def main():
             except select.error:
                 context = ''
                 prompt = args.prompt.format(context=context)
-                response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
                 total_api_time += elapsed_time
                 total_input_tokens += count_tokens(prompt, encoder)
                 total_output_tokens += count_tokens(response, encoder)
@@ -474,7 +510,7 @@ def main():
                         remaining = ''
                     
                     prompt = args.prompt.format(context=chunk_to_send)
-                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
                     total_api_time += elapsed_time
                     total_input_tokens += count_tokens(prompt, encoder)
                     total_output_tokens += count_tokens(response, encoder)
@@ -491,7 +527,7 @@ def main():
                     if '{context}' not in args.prompt and line.strip():
                         args.prompt += ' | Context: {context}'
                     prompt = args.prompt.format(context=line.strip())
-                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.verbose)
+                    response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
                     total_api_time += elapsed_time
                     total_input_tokens += count_tokens(prompt, encoder)
                     total_output_tokens += count_tokens(response, encoder)
