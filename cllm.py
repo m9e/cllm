@@ -123,9 +123,11 @@ def call_openai_api(client, model: str, prompt: str, system_message: Optional[st
         Tuple[str, float]: The response content and the elapsed time for the API call.
     """
     messages = []
-    if system_message:
+    if system_message == '':
+        system_message = None
+    if system_message is not None and 'o1' not in model:
         messages.append({"role": "system", "content": system_message})
-    else:
+    elif 'o1' not in model:
         messages.append({"role": "system", "content": DEFAULT_SYSTEM})
     messages.append({"role": "user", "content": prompt})
     if verbose:
@@ -135,30 +137,23 @@ def call_openai_api(client, model: str, prompt: str, system_message: Optional[st
     start_time = time.time()
     
     # Call the API with conditional parameters
-    if limit is not None and temperature is not None:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=limit,
-            temperature=temperature
-        )
-    elif limit is not None:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=limit
-        )
-    elif temperature is not None:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature
-        )
+    kwargs = {"model": model, "messages": messages}
+    
+    if 'o1' in model:
+        if limit is not None:
+            kwargs["max_completion_tokens"] = limit
     else:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages
-        )
+        if limit is not None:
+            kwargs["max_tokens"] = limit
+    
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    
+    try:
+        response = client.chat.completions.create(**kwargs)
+    except Exception as e:
+        print(f"Error calling OpenAI API: {e}", file=sys.stderr)
+        raise
     
     elapsed_time = time.time() - start_time
 
