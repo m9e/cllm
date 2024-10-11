@@ -2,7 +2,26 @@
 
 ## Quickstart
 
-coming shortly
+To get started with cllm:
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/m9e/cllm.git
+   cd cllm
+   ```
+
+2. Run the installation script:
+   ```
+   sudo ./install_cllm.sh
+   ```
+
+3. Set up your Azure OpenAI credentials:
+   ```
+   export AZURE_OPENAI_API_KEY=your_api_key_here
+   export AZURE_OPENAI_ENDPOINT=your_azure_endpoint_here
+   ```
+
+4. You can now use the `cllm` command from anywhere on your system.
 
 ## GPT o1 notes
 
