@@ -271,7 +271,7 @@ def main():
     parser.add_argument('-n', '--max-inference-calls', type=int, default=None, help='Maximum number of API calls to make (default: None)')
     parser.add_argument('-I', '--input', nargs='*', default=[], help='Input argument; usually read from stdin or provided as additional arguments (default: [])')
     parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure" (default: default)')
-    parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard')
+    parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard. Works with -c for large inputs.')
     parser.add_argument('-t', '--temperature', type=float, help='Temperature for the model')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
@@ -435,13 +435,33 @@ def main():
             context = pyperclip.paste()
             if '{context}' not in args.prompt and context.strip():
                 args.prompt += ' | Context: {context}'
-            prompt = args.prompt.format(context=context.strip())
-            response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
-            total_api_time += elapsed_time
-            total_input_tokens += count_tokens(prompt, encoder)
-            total_output_tokens += count_tokens(response, encoder)
-            total_api_calls += 1
-            print(response)
+            
+            # New code to handle large clipboard content
+            tokenized_context = encoder.encode(context)
+            while tokenized_context:
+                if len(tokenized_context) > args.context_length:
+                    split_point = args.context_length
+                    while split_point > 0 and tokenized_context[split_point] != ord(' '):
+                        split_point -= 1
+                    if split_point == 0:
+                        split_point = args.context_length
+                    chunk_to_send = encoder.decode(tokenized_context[:split_point])
+                    tokenized_context = tokenized_context[split_point:]
+                else:
+                    chunk_to_send = encoder.decode(tokenized_context)
+                    tokenized_context = []
+                
+                prompt = args.prompt.format(context=chunk_to_send.strip())
+                response, elapsed_time = call_openai_api(client, args.model, prompt, args.system, args.limit, args.temperature, args.verbose)
+                total_api_time += elapsed_time
+                total_input_tokens += count_tokens(prompt, encoder)
+                total_output_tokens += count_tokens(response, encoder)
+                total_api_calls += 1
+                print(response)
+                
+                if args.max_inference_calls and total_api_calls >= args.max_inference_calls:
+                    break
+        
         elif sys.stdin.isatty():
             try:
                 rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
@@ -548,4 +568,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
