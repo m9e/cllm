@@ -18,6 +18,7 @@ import json
 from tqdm import tqdm
 from typing import List, Optional, Generator, Tuple
 import pyperclip
+import subprocess
 
 DEFAULT_SYSTEM = (
     "You are an AI used to do thing in a command line pipeline. "
@@ -30,15 +31,7 @@ DEFAULT_SYSTEM = (
 )
 
 def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None, None]:
-    """Read a file in chunks of specified size.
-    
-    Args:
-        file_path (str): The path to the file to read.
-        chunk_size (int): The number of lines to read per chunk.
-    
-    Yields:
-        Generator[str, None, None]: A generator yielding chunks of the file as strings.
-    """
+    """Read a file in chunks of specified size."""
     with open(file_path, 'r') as file:
         while True:
             lines = []
@@ -52,25 +45,11 @@ def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None,
             yield ''.join(lines).strip()
 
 def resolve_and_normalize_path(path: str) -> str:
-    """Resolve and normalize the given path.
-    
-    Args:
-        path (str): The path to resolve and normalize.
-    
-    Returns:
-        str: The resolved and normalized path.
-    """
+    """Resolve and normalize the given path."""
     return os.path.realpath(os.path.abspath(path))
 
 def load_gitignore_files(directory: str) -> dict:
-    """Load .gitignore files from the directory and its parents, mapping them to their directories.
-    
-    Args:
-        directory (str): The directory to start loading .gitignore files from.
-    
-    Returns:
-        dict: A dictionary mapping directories to their .gitignore matchers.
-    """
+    """Load .gitignore files from the directory and its parents, mapping them to their directories."""
     gitignore_map = {}
     normalized_directory = resolve_and_normalize_path(directory)
     
@@ -89,15 +68,7 @@ def load_gitignore_files(directory: str) -> dict:
     return gitignore_map
 
 def is_file_ignored_by_gitignore(file_path: str, gitignore_map: dict) -> bool:
-    """Check if a file is ignored by any .gitignore matcher based on its directory.
-    
-    Args:
-        file_path (str): The path to the file to check.
-        gitignore_map (dict): A dictionary mapping directories to their .gitignore matchers.
-    
-    Returns:
-        bool: True if the file is ignored, False otherwise.
-    """
+    """Check if a file is ignored by any .gitignore matcher based on its directory."""
     normalized_file_path = resolve_and_normalize_path(file_path)
     for directory, matcher in gitignore_map.items():
         try:
@@ -108,20 +79,7 @@ def is_file_ignored_by_gitignore(file_path: str, gitignore_map: dict) -> bool:
     return False
 
 def call_openai_api(client, model: str, prompt: str, system_message: Optional[str] = None, limit: Optional[int] = None, temperature: Optional[float] = None, verbose: bool = False) -> Tuple[str, float]:
-    """Call the OpenAI API with the given parameters.
-    
-    Args:
-        client: The OpenAI client.
-        model (str): The model to use for the API call.
-        prompt (str): The user prompt.
-        system_message (Optional[str]): The system message to use.
-        limit (Optional[int]): The maximum number of tokens to generate.
-        temperature (Optional[float]): The sampling temperature to use.
-        verbose (bool): Whether to print verbose output.
-    
-    Returns:
-        Tuple[str, float]: The response content and the elapsed time for the API call.
-    """
+    """Call the OpenAI API with the given parameters."""
     messages = []
     if system_message == '':
         system_message = None
@@ -163,29 +121,11 @@ def call_openai_api(client, model: str, prompt: str, system_message: Optional[st
     return response.choices[0].message.content, elapsed_time
 
 def count_tokens(text: str, encoder) -> int:
-    """Count the number of tokens in the given text using the specified encoder.
-    
-    Args:
-        text (str): The text to count tokens in.
-        encoder: The encoder to use for counting tokens.
-    
-    Returns:
-        int: The number of tokens in the text.
-    """
+    """Count the number of tokens in the given text using the specified encoder."""
     return len(encoder.encode(text))
 
 def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_filter: Optional[str], gitignore_map: dict) -> List[Tuple[str, int]]:
-    """Get a list of files and their sizes in the directory.
-    
-    Args:
-        directory (str): The directory to search for files.
-        extensions (Optional[List[str]]): A list of file extensions to include.
-        file_filter (Optional[str]): A string to filter files by.
-        gitignore_map (dict): A dictionary mapping directories to their .gitignore matchers.
-    
-    Returns:
-        List[Tuple[str, int]]: A list of tuples containing file paths and their sizes.
-    """
+    """Get a list of files and their sizes in the directory."""
     files_and_sizes = []
     visited_inodes = set()  # To keep track of visited inodes to prevent infinite loops
 
@@ -209,21 +149,7 @@ def get_files_and_sizes(directory: str, extensions: Optional[List[str]], file_fi
     return files_and_sizes
 
 def process_files(directory: str, context_length: int, extensions: Optional[List[str]], file_filter: Optional[str], verbose: bool, token_count_mode: bool, encoder, gitignore_map: dict) -> Generator[Tuple[str, str, str], None, None]:
-    """Process files in the directory with the given parameters and yield chunks.
-    
-    Args:
-        directory (str): The directory to process files in.
-        context_length (int): The context length for splitting files/input.
-        extensions (Optional[List[str]]): A list of file extensions to include.
-        file_filter (Optional[str]): A string to filter files by.
-        verbose (bool): Whether to print verbose output.
-        token_count_mode (bool): Whether to count tokens instead of processing prompts.
-        encoder: The encoder to use for counting tokens.
-        gitignore_map (dict): A dictionary mapping directories to their .gitignore matchers.
-    
-    Yields:
-        Generator[Tuple[str, str, str], None, None]: A generator yielding tuples of file path, start line, and chunk.
-    """
+    """Process files in the directory with the given parameters and yield chunks."""
     files_and_sizes = get_files_and_sizes(directory, extensions, file_filter, gitignore_map)
 
     for file_path, file_size in tqdm(files_and_sizes, desc="Processing files", unit="B", unit_scale=True, disable=not verbose):
@@ -245,6 +171,60 @@ def process_files(directory: str, context_length: int, extensions: Optional[List
                 chunk = remaining
         if chunk:
             yield file_path, start_line, chunk
+
+def get_git_diff():
+    """Get the git diff for staged changes."""
+    try:
+        return subprocess.check_output(['git', 'diff', '--cached'], universal_newlines=True)
+    except subprocess.CalledProcessError:
+        print("Error: Failed to get git diff. Are you in a git repository?", file=sys.stderr)
+        return None
+
+def generate_commit_message(client, model, diff):
+    """Generate a commit message using the LLM."""
+    prompt = f"Below is a diff of all staged changes, coming from the command `git diff --cached`\n\nPlease generate a concise, one-line commit message for these changes:\n\n{diff}"
+    response, _ = call_openai_api(client, model, prompt, None, None, None, False)
+    return response.strip()
+
+def commit_changes(message):
+    """Commit the changes with the given message."""
+    try:
+        subprocess.check_call(['git', 'commit', '-m', message])
+        print("Changes committed successfully!")
+        return True
+    except subprocess.CalledProcessError:
+        print("Commit failed. Please check your changes and try again.", file=sys.stderr)
+        return False
+
+def gcm_feature(args, client):
+    """Generate a commit message and handle user interaction."""
+    diff = get_git_diff()
+    if not diff:
+        return
+
+    commit_message = generate_commit_message(client, args.model, diff)
+
+    while True:
+        print("\nProposed commit message:")
+        print(commit_message)
+        choice = input("Do you want to (a)ccept, (e)dit, (r)egenerate, or (c)ancel? ").lower()
+
+        if choice == 'a':
+            if commit_changes(commit_message):
+                break
+        elif choice == 'e':
+            new_message = input("Enter your commit message: ")
+            if new_message and commit_changes(new_message):
+                break
+        elif choice == 'r':
+            print("Regenerating commit message...")
+            commit_message = generate_commit_message(client, args.model, diff)
+        elif choice == 'c':
+            print("Commit cancelled.")
+            break
+        else:
+            print("Invalid choice. Please try again.")
+
 def main():
     """Main function to parse arguments and process files or stdin."""
     parser = argparse.ArgumentParser(description="Composable command-line interactions with LLM APIs")
@@ -273,6 +253,7 @@ def main():
     parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure" (default: default)')
     parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard')
     parser.add_argument('-t', '--temperature', type=float, help='Temperature for the model')
+    parser.add_argument('-gcm', '--git-commit-message', action='store_true', help='Generate Git commit message')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
 
@@ -291,7 +272,7 @@ def main():
     if not args.prompt:
         args.prompt = ' '.join(args.inline_prompt)
 
-    if not args.prompt:
+    if not args.prompt and not args.git_commit_message:
         print("Error: no prompt provided", file=sys.stderr)
         parser.print_help()
         sys.exit(1)
@@ -360,7 +341,9 @@ def main():
         else:
             client = openai.OpenAI(api_key=api_key)
 
-    if args.expand_prompt:
+    if args.git_commit_message:
+        gcm_feature(args, client)
+    elif args.expand_prompt:
         expand_prompt = args.expand_prompt or (
             "Act as an elite prompt engineer working on an important project. The user is about to call an LLM in a bash pipeline, "
             "using the LLM as a super-sophisticated sed/awk/etc, but with high-intelligence transformation. You must expand the simple "
@@ -548,4 +531,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
