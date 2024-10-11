@@ -4,6 +4,15 @@
 
 coming shortly
 
+## GPT o1 notes
+
+For the `o1` openai models:
+
+- no system prompt is allowed
+- we assume o1 if model name contains "o1" anywhere
+- we swap max_tokens -> max_completion_tokens; param is the same
+- update `openai` package (`pip install -U openai`) if you get an error about `max_completion_tokens`
+
 ## Usage
 
 See [examples in Notebook form](sample_usage.ipynb)

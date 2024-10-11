@@ -259,7 +259,7 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='Print raw request, response, params to stderr')
     parser.add_argument('-vv', '--very-verbose', action='store_true', help='Enable verbose and very verbose mode')
     parser.add_argument('-e', '--extensions', help='Comma-separated list of file extensions to process')
-    parser.add_argument('-l', '--limit', type=int, default=1024, help='Limit output tokens (default: 1024)')
+    parser.add_argument('-l', '--limit', type=int, help='Limit output tokens (default: 1024; except for models matching "*o1*", then none)')
     parser.add_argument('-B', '--base-url', help='(Optional) Base URL for OpenAI-compatible API, defaults to the standard OpenAI API endpoint')
     parser.add_argument('--expand-prompt', help='Prompt for prompt expansion, passed without the input to let the LLM craft a better prompt')
     parser.add_argument('-x', action='store_true', help='Expand the user prompt by pre-processing it with an LLM to try optimizing the result')
@@ -323,6 +323,12 @@ def main():
             args.model = 'model'
         else:
             args.model = 'gpt-4o-2024-08-06'
+
+    if args.limit is None:
+        if 'o1' not in args.model.lower():
+            args.limit = 1024
+        else:
+            args.limit = None  # Let the API decide for o1 models
 
     extensions = args.extensions.split(',') if args.extensions else None
 
