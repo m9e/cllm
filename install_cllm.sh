@@ -1,34 +1,34 @@
 #!/bin/bash
 
-# Install CLLM tool
+# Ensure pipx is installed and configured
+python -m pip install --upgrade pip pipx
+pipx ensurepath
 
-# Check if running with sudo
-if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root or using sudo"
-    exit 1
-fi
+# Clean up old installation
+sudo rm -f /usr/local/bin/cllm
 
-# Define the installation directory
-INSTALL_DIR="/usr/local/bin"
+# Install with pipx from the correct directory
+cd "$(dirname "$0")"  # Move to the script's directory
+pipx install . --force
 
-# Copy the cllm.py script to the installation directory
-if [ -f "cllm.py" ]; then
-    cp cllm.py "$INSTALL_DIR/cllm"
-    chmod +x "$INSTALL_DIR/cllm"
-    echo "CLLM script installed successfully in $INSTALL_DIR"
+# Reload PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# Set up Azure OpenAI credentials using existing environment variables if present
+echo "Setting up Azure OpenAI credentials..."
+if [ -n "$AZURE_OPENAI_API_KEY" ]; then
+    echo "AZURE_OPENAI_API_KEY is set"
 else
-    echo "Error: cllm.py not found in the current directory"
-    exit 1
+    echo "Warning: AZURE_OPENAI_API_KEY environment variable not found"
+    echo "Please set it up with: export AZURE_OPENAI_API_KEY=your_api_key_here"
 fi
 
-# Install Python dependencies
-pip install openai tiktoken gitignore_parser tqdm pyperclip
-
-echo "CLLM dependencies installed successfully"
-
-# Prompt user to set up Azure OpenAI credentials
-echo "Please set up your Azure OpenAI credentials by running the following commands:"
-echo "export AZURE_OPENAI_API_KEY=your_api_key_here"
-echo "export AZURE_OPENAI_ENDPOINT=your_azure_endpoint_here"
+if [ -n "$AZURE_OPENAI_ENDPOINT" ]; then
+    echo "export AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT"
+else
+    echo "Warning: AZURE_OPENAI_ENDPOINT environment variable not found"
+    echo "Please set it up with: export AZURE_OPENAI_ENDPOINT=your_azure_endpoint_here"
+fi
 
 echo "Installation complete. You can now use the 'cllm' command."
+echo "If 'cllm' command is not found, please run: source ~/.bashrc"

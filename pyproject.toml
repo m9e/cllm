@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cllm"
+version = "0.1.0"
+description = "CLLM tool"
+requires-python = ">=3.7"
+dependencies = [
+    "openai",
+    "tiktoken",
+    "gitignore_parser",
+    "tqdm",
+    "pyperclip",
+]
+
+[project.scripts]
+cllm = "cllm.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"} 
