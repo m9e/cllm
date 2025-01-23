@@ -1,0 +1,57 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX meta: <./meta#>
+PREFIX metameta: <./metameta#>
+PREFIX problem: <./problem#>
+PREFIX solution: <./solution#>
+PREFIX conversation: <./conversation#>
+PREFIX process: <./process#>
+PREFIX agent: <./agent#>
+PREFIX time: <./time#>
+PREFIX install: <./install#>
+
+SELECT DISTINCT ?framework ?usage ?usageType ?localEntity
+WHERE {
+  {
+    # Classes that extend framework classes
+    ?localEntity rdfs:subClassOf ?usage .
+    BIND("subclass" as ?usageType)
+  } UNION {
+    # Properties that use framework classes as domain
+    ?localEntity rdfs:domain ?usage .
+    BIND("domain" as ?usageType)
+  } UNION {
+    # Properties that use framework classes as range
+    ?localEntity rdfs:range ?usage .
+    BIND("range" as ?usageType)
+  } UNION {
+    # Instances of framework classes
+    ?localEntity rdf:type ?usage .
+    BIND("instance" as ?usageType)
+  } UNION {
+    # Properties from frameworks
+    ?localEntity ?usage ?object .
+    BIND("property" as ?usageType)
+  }
+  
+  # Extract framework prefix
+  BIND(
+    CASE 
+      WHEN CONTAINS(STR(?usage), "meta#") THEN "meta"
+      WHEN CONTAINS(STR(?usage), "metameta#") THEN "metameta"
+      WHEN CONTAINS(STR(?usage), "problem#") THEN "problem"
+      WHEN CONTAINS(STR(?usage), "solution#") THEN "solution"
+      WHEN CONTAINS(STR(?usage), "conversation#") THEN "conversation"
+      WHEN CONTAINS(STR(?usage), "process#") THEN "process"
+      WHEN CONTAINS(STR(?usage), "agent#") THEN "agent"
+      WHEN CONTAINS(STR(?usage), "time#") THEN "time"
+      WHEN CONTAINS(STR(?usage), "install#") THEN "install"
+      ELSE "other"
+    END as ?framework
+  )
+  
+  # Only include framework usages
+  FILTER(?framework != "other")
+}
+ORDER BY ?framework ?usageType ?usage 

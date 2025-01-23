@@ -1,22 +1,55 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cllm"
 version = "0.1.0"
-description = "CLLM tool"
-requires-python = ">=3.7"
+description = "CLLM - Command Line Language Model tool"
+authors = [
+    {name = "Matt Wallace", email = "matt@m9e.dev"},
+    {name = "Lou Springer", email = "lou@louspringer.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+keywords = ["cli", "ai", "language-model", "llm", "openai", "azure", "ontology"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+]
 dependencies = [
-    "openai",
+    "openai>=1.0.0",
     "tiktoken",
     "gitignore_parser",
     "tqdm",
     "pyperclip",
+    "python-dotenv>=1.0.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "flake8>=6.1.0",
+    "flake8-docstrings",
+    "flake8-bugbear",
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "rdflib>=7.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/m9e/cllm"
+Documentation = "https://github.com/m9e/cllm/blob/main/README.md"
+"Bug Tracker" = "https://github.com/m9e/cllm/issues"
+"Ontology Framework" = "https://github.com/louspringer/ontology-framework"
 
 [project.scripts]
 cllm = "cllm.main:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"} 
+package-dir = {"" = "src"}
+packages = ["cllm"] 

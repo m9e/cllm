@@ -19,6 +19,18 @@ from tqdm import tqdm
 from typing import List, Optional, Generator, Tuple
 import pyperclip
 import subprocess
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables from .env files
+# Search for .env file starting from current directory up to root
+env_file = find_dotenv()
+if env_file:
+    load_dotenv(env_file)
+else:
+    # Try home directory as fallback
+    home_env = os.path.expanduser("~/.env")
+    if os.path.exists(home_env):
+        load_dotenv(home_env)
 
 DEFAULT_SYSTEM = (
     "You are an AI used to do thing in a command line pipeline. "

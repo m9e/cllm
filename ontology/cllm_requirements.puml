@@ -1,0 +1,102 @@
+@startuml cllm_requirements
+
+!pragma layout smetana
+skinparam {
+    BackgroundColor White
+    ArrowColor #666666
+    BorderColor #666666
+    NoteBorderColor #666666
+    NoteBackgroundColor White
+    MaxMessageSize 50
+    WrapWidth 100
+    PackageStyle rectangle
+    Padding 5
+    Ranksep 20
+    Nodesep 30
+}
+
+together {
+    rectangle "CLI" as CLI {
+        usecase "Input Modes" as UC1
+        usecase "Validation" as UC2
+    }
+    note left of CLI
+        Input:
+        - Dir scan
+        - Stdin
+        - String
+        
+        Valid:
+        - Types
+        - Ranges
+        - Rules
+    end note
+}
+
+together {
+    rectangle "Process" as PROC {
+        usecase "Chunking" as UC3
+        usecase "API" as UC4
+    }
+    note left of PROC
+        Chunk:
+        - Split
+        - Window
+        - Tokens
+        
+        API:
+        - Calls
+        - Limits
+        - Errors
+    end note
+}
+
+together {
+    rectangle "Output" as OUT {
+        usecase "Results" as UC5
+        usecase "Errors" as UC6
+    }
+    note left of OUT
+        Out:
+        - Sum
+        - Stats
+        - Format
+        
+        Err:
+        - Log
+        - Debug
+        - Info
+    end note
+}
+
+together {
+    rectangle "NFR" as NFR {
+        usecase "Perf" as UC7
+        usecase "Extend" as UC8
+        usecase "Secure" as UC9
+        usecase "UX" as UC10
+    }
+    note left of NFR
+        NFRs:
+        - Speed
+        - Scale
+        - Plugins
+        - Safety
+        - Help
+    end note
+}
+
+' Flow
+UC1 -down-> UC3
+UC2 -down-> UC1
+UC3 -down-> UC4
+UC4 -down-> UC5
+UC5 -down-> UC6
+
+' Links
+UC7 --> UC3
+UC8 --> UC4
+UC9 --> UC4
+UC10 --> UC2
+
+@enduml 
