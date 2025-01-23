@@ -1,0 +1,1035 @@
+@prefix cllm: <./cllm#> .
+@prefix meta: <./meta#> .
+@prefix metameta: <./metameta#> .
+@prefix problem: <./problem#> .
+@prefix solution: <./solution#> .
+@prefix conversation: <./conversation#> .
+@prefix process: <./process#> .
+@prefix agent: <./agent#> .
+@prefix time: <./time#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix install: <./install#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+# Ontology Metadata
+cllm: a owl:Ontology ;
+    rdfs:label "CLLM Ontology"@en ;
+    rdfs:comment "Ontology for the Command-Line LLM (CLLM) tool that enables composable command-line interactions with LLM APIs."@en ;
+    owl:versionInfo "0.1.0" ;
+    dc:creator [
+        a foaf:Person ;
+        foaf:name "Matt Wallace" ;
+        rdfs:comment "Primary author and maintainer of CLLM"@en ;
+        foaf:homepage <https://github.com/m9e>
+    ] ;
+    dc:creator [
+        a foaf:Person ;
+        foaf:name "Lou Springer" ;
+        rdfs:comment "Ontology framework author and documentation contributor"@en ;
+        foaf:homepage <https://github.com/louspringer>
+    ] ;
+    dc:contributor [
+        a foaf:Agent ;
+        foaf:name "OpenAI" ;
+        rdfs:comment "AI assistance in ontology development and documentation"@en ;
+        foaf:homepage <https://openai.com>
+    ] ;
+    dc:source <https://github.com/m9e/cllm> ;
+    dc:isVersionOf <https://github.com/m9e/cllm> ;
+    rdfs:seeAlso <https://github.com/m9e/cllm/blob/main/README.md> ;
+    rdfs:seeAlso <https://github.com/louspringer/ontology-framework> .
+
+# Core Classes
+cllm:CLITool a owl:Class ;
+    rdfs:label "Command Line Tool"@en ;
+    rdfs:comment "A command-line interface tool for interacting with language models"@en .
+
+cllm:APIProvider a owl:Class ;
+    rdfs:label "API Provider"@en ;
+    rdfs:comment "A provider of LLM API services (e.g., OpenAI, Azure)"@en .
+
+cllm:Model a owl:Class ;
+    rdfs:label "LLM Model"@en ;
+    rdfs:comment "A language model that can be used with the CLLM tool"@en .
+
+cllm:ProcessingMode a owl:Class ;
+    rdfs:label "Processing Mode"@en ;
+    rdfs:comment "Different modes of processing input (e.g., file chunks, stdin, single string)"@en .
+
+cllm:Configuration a owl:Class ;
+    rdfs:label "Configuration"@en ;
+    rdfs:comment "Configuration settings for the CLLM tool"@en .
+
+cllm:Dependency a owl:Class ;
+    rdfs:label "Dependency"@en ;
+    rdfs:comment "A Python package dependency required by CLLM"@en .
+
+cllm:OptionalDependency a owl:Class ;
+    rdfs:subClassOf cllm:Dependency ;
+    rdfs:label "Optional Dependency"@en ;
+    rdfs:comment "A Python package dependency that is only required for specific features"@en .
+
+cllm:Documentation a owl:Class ;
+    rdfs:label "Documentation"@en ;
+    rdfs:comment "Base class for documentation types"@en .
+
+cllm:EnvironmentVariable a owl:Class ;
+    rdfs:label "Environment Variable"@en ;
+    rdfs:comment "An environment variable used for configuration"@en .
+
+cllm:APICredentials a owl:Class ;
+    rdfs:label "API Credentials"@en ;
+    rdfs:comment "Authentication credentials for accessing LLM API services"@en .
+
+cllm:APIEndpoint a owl:Class ;
+    rdfs:label "API Endpoint"@en ;
+    rdfs:comment "Service endpoint URL for accessing LLM API services"@en .
+
+# Properties
+cllm:hasDependency a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:Dependency ;
+    rdfs:comment "Links the CLI tool to its dependencies"@en .
+
+cllm:hasOptionalDependency a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:OptionalDependency ;
+    rdfs:comment "Links the CLI tool to its optional dependencies"@en .
+
+cllm:hasDocumentation a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:Documentation ;
+    rdfs:comment "Links the CLI tool to its documentation"@en .
+
+cllm:requiresDependency a owl:ObjectProperty ;
+    rdfs:domain cllm:Documentation ;
+    rdfs:range cllm:Dependency ;
+    rdfs:comment "Specifies dependencies required for documentation examples"@en .
+
+cllm:hasProvider a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:APIProvider ;
+    rdfs:label "has provider"@en ;
+    rdfs:comment "Links the CLLM tool to its API provider"@en .
+
+cllm:usesModel a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:Model ;
+    rdfs:label "uses model"@en ;
+    rdfs:comment "Specifies which LLM model is being used"@en .
+
+cllm:hasProcessingMode a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:ProcessingMode ;
+    rdfs:label "has processing mode"@en ;
+    rdfs:comment "Indicates the processing mode being used"@en .
+
+cllm:hasConfiguration a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:Configuration ;
+    rdfs:comment "Links the CLI tool to its configuration"@en .
+
+cllm:requiresEnvVar a owl:ObjectProperty ;
+    rdfs:domain cllm:Configuration ;
+    rdfs:range cllm:EnvironmentVariable ;
+    rdfs:comment "Specifies required environment variables"@en .
+
+cllm:hasCredentials a owl:ObjectProperty ;
+    rdfs:domain cllm:APIProvider ;
+    rdfs:range cllm:APICredentials ;
+    rdfs:label "has credentials"@en ;
+    rdfs:comment "Links an API provider to its authentication credentials"@en .
+
+cllm:hasEndpoint a owl:ObjectProperty ;
+    rdfs:domain cllm:APIProvider ;
+    rdfs:range cllm:APIEndpoint ;
+    rdfs:label "has endpoint"@en ;
+    rdfs:comment "Links an API provider to its service endpoint"@en .
+
+# Datatype Properties
+cllm:hasVersion a owl:DatatypeProperty ;
+    rdfs:domain cllm:Dependency ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Specifies the version of a dependency"@en .
+
+cllm:contextLength a owl:DatatypeProperty ;
+    rdfs:domain cllm:Configuration ;
+    rdfs:range xsd:integer ;
+    rdfs:label "context length"@en ;
+    rdfs:comment "Maximum context length for processing input"@en .
+
+cllm:maxInferenceCalls a owl:DatatypeProperty ;
+    rdfs:domain cllm:Configuration ;
+    rdfs:range xsd:integer ;
+    rdfs:label "max inference calls"@en ;
+    rdfs:comment "Maximum number of API calls allowed"@en .
+
+cllm:apiKey a owl:DatatypeProperty ;
+    rdfs:domain cllm:APICredentials ;
+    rdfs:range xsd:string ;
+    rdfs:label "API key"@en ;
+    rdfs:comment "The API key used for authentication"@en .
+
+cllm:endpointUrl a owl:DatatypeProperty ;
+    rdfs:domain cllm:APIEndpoint ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "endpoint URL"@en ;
+    rdfs:comment "The URL of the API service endpoint"@en .
+
+# Individuals
+cllm:CLLM a cllm:CLITool ;
+    rdfs:label "CLLM Tool"@en ;
+    rdfs:comment "Command Line Language Model interface tool"@en ;
+    cllm:hasDependency cllm:OpenAI, cllm:Tiktoken, cllm:DotEnv ;
+    cllm:hasDocumentation cllm:NotebookExamples ;
+    cllm:hasProvider cllm:AzureProvider .
+
+cllm:NotebookExamples a cllm:Documentation ;
+    rdfs:label "Jupyter Notebook Examples"@en ;
+    rdfs:comment "Interactive examples in Jupyter Notebook format"@en ;
+    cllm:requiresDependency cllm:Jupyter .
+
+cllm:OpenAI a cllm:Dependency ;
+    rdfs:label "OpenAI Package"@en ;
+    cllm:hasVersion "latest" .
+
+cllm:Tiktoken a cllm:Dependency ;
+    rdfs:label "Tiktoken Package"@en ;
+    cllm:hasVersion "latest" .
+
+cllm:DotEnv a cllm:Dependency ;
+    rdfs:label "Python-dotenv Package"@en ;
+    cllm:hasVersion ">=1.0.0" .
+
+cllm:Jupyter a cllm:OptionalDependency ;
+    rdfs:label "Jupyter Package"@en ;
+    rdfs:comment "Required for running example notebooks"@en ;
+    cllm:hasVersion "latest" .
+
+cllm:DefaultSystem a cllm:Configuration ;
+    rdfs:label "Default System Configuration"@en ;
+    rdfs:comment "Default system configuration for the CLLM tool"@en ;
+    cllm:contextLength 2048 .
+
+cllm:OpenAIProvider a cllm:APIProvider ;
+    rdfs:label "OpenAI API Provider"@en ;
+    rdfs:comment "OpenAI's API service for language models"@en .
+
+cllm:AzureProvider a cllm:APIProvider ;
+    rdfs:label "Azure OpenAI Provider"@en ;
+    rdfs:comment "Microsoft Azure's OpenAI API service"@en ;
+    cllm:hasCredentials cllm:AzureCredentials ;
+    cllm:hasEndpoint cllm:AzureEndpoint .
+
+cllm:FileChunkMode a cllm:ProcessingMode ;
+    rdfs:label "File Chunk Processing Mode"@en ;
+    rdfs:comment "Processes input files in chunks based on context length"@en .
+
+cllm:SingleStringMode a cllm:ProcessingMode ;
+    rdfs:label "Single String Processing Mode"@en ;
+    rdfs:comment "Processes all input as a single string"@en .
+
+cllm:AzureCredentials a cllm:APICredentials ;
+    rdfs:label "Azure OpenAI Credentials"@en ;
+    rdfs:comment "Credentials for Azure OpenAI service stored in AZURE_OPENAI_API_KEY environment variable"@en .
+
+cllm:AzureEndpoint a cllm:APIEndpoint ;
+    rdfs:label "Azure OpenAI Endpoint"@en ;
+    rdfs:comment "Azure OpenAI service endpoint stored in AZURE_OPENAI_ENDPOINT environment variable"@en .
+
+# SHACL Shapes
+cllm:CLLMToolShape a sh:NodeShape ;
+    sh:targetClass cllm:CLITool ;
+    sh:property [
+        sh:path cllm:hasProvider ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path cllm:usesModel ;
+        sh:minCount 1 ;
+    ] ;
+    sh:property [
+        sh:path cllm:hasProcessingMode ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+cllm:APIProviderShape a sh:NodeShape ;
+    sh:targetClass cllm:APIProvider ;
+    sh:property [
+        sh:path cllm:hasCredentials ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path cllm:hasEndpoint ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+# Additional Core Classes
+cllm:CLIArgument a owl:Class ;
+    rdfs:label "Command Line Argument"@en ;
+    rdfs:comment "A command-line argument or option for the CLLM tool"@en .
+
+cllm:InputProcessor a owl:Class ;
+    rdfs:label "Input Processor"@en ;
+    rdfs:comment "Component responsible for processing different types of input"@en .
+
+cllm:TokenCounter a owl:Class ;
+    rdfs:label "Token Counter"@en ;
+    rdfs:comment "Component for counting and managing tokens in input/output"@en .
+
+cllm:ProgressTracker a owl:Class ;
+    rdfs:label "Progress Tracker"@en ;
+    rdfs:comment "Component for tracking and displaying progress of operations"@en .
+
+cllm:SecurityPolicy a owl:Class ;
+    rdfs:label "Security Policy"@en ;
+    rdfs:comment "Security policies and best practices for the tool"@en .
+
+cllm:InstallationMethod a owl:Class ;
+    rdfs:label "Installation Method"@en ;
+    rdfs:comment "Method for installing the CLLM tool"@en .
+
+# Additional Properties
+cllm:hasArgument a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:CLIArgument ;
+    rdfs:comment "Links the CLI tool to its command-line arguments"@en .
+
+cllm:argumentName a owl:DatatypeProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The name/flag of the command-line argument"@en .
+
+cllm:argumentDescription a owl:DatatypeProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Description of what the argument does"@en .
+
+cllm:isRequired a owl:DatatypeProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "Whether the argument is required"@en .
+
+cllm:defaultValue a owl:DatatypeProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Default value of the argument if not specified"@en .
+
+cllm:hasSecurityPolicy a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:SecurityPolicy ;
+    rdfs:comment "Links the tool to its security policies"@en .
+
+cllm:hasInstallationMethod a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:InstallationMethod ;
+    rdfs:comment "Links the tool to its installation methods"@en .
+
+# Additional Processing Modes
+cllm:StdinMode a cllm:ProcessingMode ;
+    rdfs:label "Standard Input Mode"@en ;
+    rdfs:comment "Processes input from standard input stream"@en .
+
+cllm:DirectoryMode a cllm:ProcessingMode ;
+    rdfs:label "Directory Processing Mode"@en ;
+    rdfs:comment "Processes all files in a directory"@en .
+
+# Additional Individuals
+cllm:PromptArgument a cllm:CLIArgument ;
+    rdfs:label "Prompt Argument"@en ;
+    cllm:argumentName "-p" ;
+    cllm:argumentDescription "User prompt" ;
+    cllm:isRequired false .
+
+cllm:DirectoryArgument a cllm:CLIArgument ;
+    rdfs:label "Directory Argument"@en ;
+    cllm:argumentName "-d" ;
+    cllm:argumentDescription "Directory to process" ;
+    cllm:isRequired false .
+
+cllm:ModelArgument a cllm:CLIArgument ;
+    rdfs:label "Model Argument"@en ;
+    cllm:argumentName "-m" ;
+    cllm:argumentDescription "Model name" ;
+    cllm:isRequired false .
+
+cllm:PipInstall a cllm:InstallationMethod ;
+    rdfs:label "Pip Installation"@en ;
+    rdfs:comment "Installation using pip package manager"@en .
+
+cllm:PipxInstall a cllm:InstallationMethod ;
+    rdfs:label "Pipx Installation"@en ;
+    rdfs:comment "Installation using pipx for isolated environments"@en .
+
+cllm:DevelopmentInstall a cllm:InstallationMethod ;
+    rdfs:label "Development Installation"@en ;
+    rdfs:comment "Installation in development mode with -e flag"@en .
+
+cllm:CredentialSecurity a cllm:SecurityPolicy ;
+    rdfs:label "Credential Security"@en ;
+    rdfs:comment "Policy for secure handling of API credentials"@en .
+
+cllm:EnvFileSecurity a cllm:SecurityPolicy ;
+    rdfs:label "Environment File Security"@en ;
+    rdfs:comment "Policy for secure management of .env files"@en .
+
+# Additional SHACL Shapes
+cllm:CLIArgumentShape a sh:NodeShape ;
+    sh:targetClass cllm:CLIArgument ;
+    sh:property [
+        sh:path cllm:argumentName ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+    ] ;
+    sh:property [
+        sh:path cllm:argumentDescription ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+    ] ;
+    sh:property [
+        sh:path cllm:defaultValue ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+    ] .
+
+cllm:SecurityPolicyShape a sh:NodeShape ;
+    sh:targetClass cllm:SecurityPolicy ;
+    sh:property [
+        sh:path rdfs:comment ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+    ] .
+
+# Additional CLI Arguments
+cllm:ContextLengthArgument a cllm:CLIArgument ;
+    rdfs:label "Context Length Argument"@en ;
+    cllm:argumentName "-c" ;
+    cllm:argumentDescription "Context length for splitting files/input" ;
+    cllm:isRequired false ;
+    cllm:defaultValue "4096" .
+
+cllm:SummaryArgument a cllm:CLIArgument ;
+    rdfs:label "Summary Argument"@en ;
+    cllm:argumentName "-s" ;
+    cllm:argumentDescription "Summary prompt" ;
+    cllm:isRequired false .
+
+cllm:SystemArgument a cllm:CLIArgument ;
+    rdfs:label "System Message Argument"@en ;
+    cllm:argumentName "--system" ;
+    cllm:argumentDescription "System message" ;
+    cllm:isRequired false .
+
+cllm:FilterArgument a cllm:CLIArgument ;
+    rdfs:label "Filter Argument"@en ;
+    cllm:argumentName "-f" ;
+    cllm:argumentDescription "Filter files by string in path" ;
+    cllm:isRequired false .
+
+cllm:StatsArgument a cllm:CLIArgument ;
+    rdfs:label "Statistics Argument"@en ;
+    cllm:argumentName "--stats" ;
+    cllm:argumentDescription "Print statistics" ;
+    cllm:isRequired false .
+
+cllm:VerboseArgument a cllm:CLIArgument ;
+    rdfs:label "Verbose Argument"@en ;
+    cllm:argumentName "-v" ;
+    cllm:argumentDescription "Print raw request, response, params to stderr" ;
+    cllm:isRequired false .
+
+cllm:ExtensionsArgument a cllm:CLIArgument ;
+    rdfs:label "Extensions Argument"@en ;
+    cllm:argumentName "-e" ;
+    cllm:argumentDescription "Comma-separated list of file extensions to process" ;
+    cllm:isRequired false .
+
+cllm:LimitArgument a cllm:CLIArgument ;
+    rdfs:label "Limit Argument"@en ;
+    cllm:argumentName "-l" ;
+    cllm:argumentDescription "Limit output tokens" ;
+    cllm:isRequired false .
+
+cllm:BaseUrlArgument a cllm:CLIArgument ;
+    rdfs:label "Base URL Argument"@en ;
+    cllm:argumentName "-B" ;
+    cllm:argumentDescription "Base URL for OpenAI-compatible API" ;
+    cllm:isRequired false .
+
+cllm:ExpandPromptArgument a cllm:CLIArgument ;
+    rdfs:label "Expand Prompt Argument"@en ;
+    cllm:argumentName "--expand-prompt" ;
+    cllm:argumentDescription "Prompt for prompt expansion" ;
+    cllm:isRequired false .
+
+cllm:SingleStringStdinArgument a cllm:CLIArgument ;
+    rdfs:label "Single String Stdin Argument"@en ;
+    cllm:argumentName "-S" ;
+    cllm:argumentDescription "Treat all stdin as a single string" ;
+    cllm:isRequired false .
+
+cllm:OverlapArgument a cllm:CLIArgument ;
+    rdfs:label "Overlap Argument"@en ;
+    cllm:argumentName "-o" ;
+    cllm:argumentDescription "Number of bytes to include before the split" ;
+    cllm:isRequired false .
+
+cllm:ProgressBarArgument a cllm:CLIArgument ;
+    rdfs:label "Progress Bar Argument"@en ;
+    cllm:argumentName "-b" ;
+    cllm:argumentDescription "Display a progress bar" ;
+    cllm:isRequired false .
+
+cllm:SendEmptyArgument a cllm:CLIArgument ;
+    rdfs:label "Send Empty Argument"@en ;
+    cllm:argumentName "--send-empty" ;
+    cllm:argumentDescription "Send empty lines with as empty context" ;
+    cllm:isRequired false .
+
+cllm:TokenCountArgument a cllm:CLIArgument ;
+    rdfs:label "Token Count Argument"@en ;
+    cllm:argumentName "--tc" ;
+    cllm:argumentDescription "Count tokens instead of processing prompts" ;
+    cllm:isRequired false .
+
+cllm:MaxInferenceCallsArgument a cllm:CLIArgument ;
+    rdfs:label "Max Inference Calls Argument"@en ;
+    cllm:argumentName "-n" ;
+    cllm:argumentDescription "Maximum number of API calls to make" ;
+    cllm:isRequired false .
+
+cllm:InputArgument a cllm:CLIArgument ;
+    rdfs:label "Input Argument"@en ;
+    cllm:argumentName "-I" ;
+    cllm:argumentDescription "Input argument" ;
+    cllm:isRequired false .
+
+# Update CLLM Individual with all arguments
+cllm:CLLM 
+    cllm:hasArgument cllm:PromptArgument, cllm:DirectoryArgument, cllm:ModelArgument,
+        cllm:ContextLengthArgument, cllm:SummaryArgument, cllm:SystemArgument,
+        cllm:FilterArgument, cllm:StatsArgument, cllm:VerboseArgument,
+        cllm:ExtensionsArgument, cllm:LimitArgument, cllm:BaseUrlArgument,
+        cllm:ExpandPromptArgument, cllm:SingleStringStdinArgument, cllm:OverlapArgument,
+        cllm:ProgressBarArgument, cllm:SendEmptyArgument, cllm:TokenCountArgument,
+        cllm:MaxInferenceCallsArgument, cllm:InputArgument ;
+    cllm:hasSecurityPolicy cllm:CredentialSecurity, cllm:EnvFileSecurity ;
+    cllm:hasInstallationMethod cllm:PipInstall, cllm:PipxInstall, cllm:DevelopmentInstall .
+
+# Add Argument Categories
+cllm:ArgumentCategory a owl:Class ;
+    rdfs:label "Argument Category"@en ;
+    rdfs:comment "Category grouping related command line arguments"@en .
+
+cllm:InputCategory a cllm:ArgumentCategory ;
+    rdfs:label "Input Control Arguments"@en ;
+    rdfs:comment "Arguments that control input processing"@en .
+
+cllm:ProcessingCategory a cllm:ArgumentCategory ;
+    rdfs:label "Processing Configuration Arguments"@en ;
+    rdfs:comment "Arguments that configure how input is processed"@en .
+
+cllm:OutputCategory a cllm:ArgumentCategory ;
+    rdfs:label "Output Control Arguments"@en ;
+    rdfs:comment "Arguments that control output behavior"@en .
+
+cllm:APICategory a cllm:ArgumentCategory ;
+    rdfs:label "API Configuration Arguments"@en ;
+    rdfs:comment "Arguments that configure API behavior"@en .
+
+cllm:PerformanceCategory a cllm:ArgumentCategory ;
+    rdfs:label "Performance Arguments"@en ;
+    rdfs:comment "Arguments that affect performance and resource usage"@en .
+
+# Add Argument Type Properties
+cllm:argumentType a owl:ObjectProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range cllm:ArgumentType ;
+    rdfs:comment "The data type of the argument value"@en .
+
+cllm:ArgumentType a owl:Class ;
+    rdfs:label "Argument Type"@en ;
+    rdfs:comment "Data type of a command line argument"@en .
+
+cllm:IntegerType a cllm:ArgumentType ;
+    rdfs:label "Integer Type"@en .
+
+cllm:BooleanType a cllm:ArgumentType ;
+    rdfs:label "Boolean Type"@en .
+
+cllm:StringType a cllm:ArgumentType ;
+    rdfs:label "String Type"@en .
+
+cllm:ListType a cllm:ArgumentType ;
+    rdfs:label "List Type"@en .
+
+# Add Argument Dependencies
+cllm:dependsOn a owl:ObjectProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range cllm:CLIArgument ;
+    rdfs:comment "Indicates that one argument depends on another"@en .
+
+cllm:conflictsWith a owl:ObjectProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range cllm:CLIArgument ;
+    rdfs:comment "Indicates that one argument conflicts with another"@en .
+
+cllm:inCategory a owl:ObjectProperty ;
+    rdfs:domain cllm:CLIArgument ;
+    rdfs:range cllm:ArgumentCategory ;
+    rdfs:comment "Places an argument in a category"@en .
+
+# Update existing arguments with new properties
+cllm:PromptArgument 
+    cllm:argumentType cllm:StringType ;
+    cllm:inCategory cllm:InputCategory .
+
+cllm:DirectoryArgument 
+    cllm:argumentType cllm:StringType ;
+    cllm:inCategory cllm:InputCategory .
+
+cllm:ModelArgument 
+    cllm:argumentType cllm:StringType ;
+    cllm:inCategory cllm:APICategory .
+
+cllm:ContextLengthArgument 
+    cllm:argumentType cllm:IntegerType ;
+    cllm:inCategory cllm:ProcessingCategory .
+
+cllm:SingleStringStdinArgument 
+    cllm:argumentType cllm:BooleanType ;
+    cllm:inCategory cllm:ProcessingCategory ;
+    cllm:dependsOn cllm:InputArgument .
+
+cllm:ExtensionsArgument 
+    cllm:argumentType cllm:ListType ;
+    cllm:inCategory cllm:InputCategory .
+
+cllm:ProgressBarArgument 
+    cllm:argumentType cllm:BooleanType ;
+    cllm:inCategory cllm:PerformanceCategory ;
+    cllm:dependsOn cllm:DirectoryArgument .
+
+cllm:ExpandPromptArgument 
+    cllm:argumentType cllm:StringType ;
+    cllm:inCategory cllm:ProcessingCategory ;
+    cllm:dependsOn cllm:PromptArgument .
+
+# Add SHACL validation for new properties
+cllm:CLIArgumentShape 
+    sh:property [
+        sh:path cllm:argumentType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path cllm:inCategory ;
+        sh:minCount 1 ;
+    ] .
+
+cllm:ArgumentCategoryShape a sh:NodeShape ;
+    sh:targetClass cllm:ArgumentCategory ;
+    sh:property [
+        sh:path rdfs:label ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+    ] .
+
+# Rate Limiting Classes
+cllm:RateLimitPolicy a owl:Class ;
+    rdfs:label "Rate Limit Policy"@en ;
+    rdfs:comment "Policy defining API rate limits and throttling behavior"@en .
+
+cllm:RateLimitRule a owl:Class ;
+    rdfs:label "Rate Limit Rule"@en ;
+    rdfs:comment "Specific rule within a rate limit policy"@en .
+
+cllm:RetryStrategy a owl:Class ;
+    rdfs:label "Retry Strategy"@en ;
+    rdfs:comment "Strategy for handling rate limit exceeded scenarios"@en .
+
+# Error Handling Classes
+cllm:ErrorHandler a owl:Class ;
+    rdfs:label "Error Handler"@en ;
+    rdfs:comment "Component responsible for handling and logging errors"@en .
+
+cllm:ErrorType a owl:Class ;
+    rdfs:label "Error Type"@en ;
+    rdfs:comment "Classification of different error types"@en .
+
+cllm:ErrorContext a owl:Class ;
+    rdfs:label "Error Context"@en ;
+    rdfs:comment "Contextual information about an error occurrence"@en .
+
+cllm:ErrorRecoveryStrategy a owl:Class ;
+    rdfs:label "Error Recovery Strategy"@en ;
+    rdfs:comment "Strategy for recovering from specific error types"@en .
+
+# Token Management Classes
+cllm:TokenManager a owl:Class ;
+    rdfs:label "Token Manager"@en ;
+    rdfs:comment "Component responsible for token counting and management"@en .
+
+cllm:TokenCounter a owl:Class ;
+    rdfs:label "Token Counter"@en ;
+    rdfs:comment "Component for counting tokens in input/output text"@en .
+
+cllm:TokenizationStrategy a owl:Class ;
+    rdfs:label "Tokenization Strategy"@en ;
+    rdfs:comment "Strategy for tokenizing text based on model requirements"@en .
+
+# Rate Limiting Properties
+cllm:hasRateLimit a owl:ObjectProperty ;
+    rdfs:domain cllm:APIProvider ;
+    rdfs:range cllm:RateLimitPolicy ;
+    rdfs:comment "Links an API provider to its rate limit policy"@en .
+
+cllm:hasRule a owl:ObjectProperty ;
+    rdfs:domain cllm:RateLimitPolicy ;
+    rdfs:range cllm:RateLimitRule ;
+    rdfs:comment "Links a rate limit policy to its rules"@en .
+
+cllm:requestsPerMinute a owl:DatatypeProperty ;
+    rdfs:domain cllm:RateLimitRule ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Maximum number of requests allowed per minute"@en .
+
+cllm:retryAfter a owl:DatatypeProperty ;
+    rdfs:domain cllm:RateLimitRule ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Time to wait before retrying after limit exceeded"@en .
+
+# Error Handling Properties
+cllm:hasErrorHandler a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:ErrorHandler ;
+    rdfs:comment "Links the CLI tool to its error handler"@en .
+
+cllm:handlesErrorType a owl:ObjectProperty ;
+    rdfs:domain cllm:ErrorHandler ;
+    rdfs:range cllm:ErrorType ;
+    rdfs:comment "Links an error handler to the types of errors it handles"@en .
+
+cllm:hasRecoveryStrategy a owl:ObjectProperty ;
+    rdfs:domain cllm:ErrorType ;
+    rdfs:range cllm:ErrorRecoveryStrategy ;
+    rdfs:comment "Links an error type to its recovery strategy"@en .
+
+cllm:errorSeverity a owl:DatatypeProperty ;
+    rdfs:domain cllm:ErrorType ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Severity level of the error (info, warning, error, critical)"@en .
+
+# Token Management Properties
+cllm:hasTokenManager a owl:ObjectProperty ;
+    rdfs:domain cllm:CLITool ;
+    rdfs:range cllm:TokenManager ;
+    rdfs:comment "Links the CLI tool to its token manager"@en .
+
+cllm:usesTokenCounter a owl:ObjectProperty ;
+    rdfs:domain cllm:TokenManager ;
+    rdfs:range cllm:TokenCounter ;
+    rdfs:comment "Links a token manager to its token counter"@en .
+
+cllm:hasTokenizationStrategy a owl:ObjectProperty ;
+    rdfs:domain cllm:TokenManager ;
+    rdfs:range cllm:TokenizationStrategy ;
+    rdfs:comment "Links a token manager to its tokenization strategy"@en .
+
+cllm:maxTokens a owl:DatatypeProperty ;
+    rdfs:domain cllm:TokenManager ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Maximum number of tokens allowed"@en .
+
+# Individuals for Rate Limiting
+cllm:DefaultRateLimit a cllm:RateLimitPolicy ;
+    rdfs:label "Default Rate Limit Policy"@en ;
+    rdfs:comment "Default rate limiting policy for API providers"@en ;
+    cllm:hasRule cllm:StandardRateLimit .
+
+cllm:StandardRateLimit a cllm:RateLimitRule ;
+    rdfs:label "Standard Rate Limit"@en ;
+    cllm:requestsPerMinute 60 ;
+    cllm:retryAfter 20 .
+
+# Individuals for Error Handling
+cllm:DefaultErrorHandler a cllm:ErrorHandler ;
+    rdfs:label "Default Error Handler"@en ;
+    rdfs:comment "Default error handler for the CLI tool"@en ;
+    cllm:handlesErrorType cllm:APIError, cllm:TokenError, cllm:InputError .
+
+cllm:APIError a cllm:ErrorType ;
+    rdfs:label "API Error"@en ;
+    cllm:errorSeverity "error" ;
+    cllm:hasRecoveryStrategy cllm:RetryStrategy .
+
+cllm:TokenError a cllm:ErrorType ;
+    rdfs:label "Token Error"@en ;
+    cllm:errorSeverity "warning" ;
+    cllm:hasRecoveryStrategy cllm:TruncateStrategy .
+
+cllm:InputError a cllm:ErrorType ;
+    rdfs:label "Input Error"@en ;
+    cllm:errorSeverity "error" ;
+    cllm:hasRecoveryStrategy cllm:SkipStrategy .
+
+# Individuals for Token Management
+cllm:DefaultTokenManager a cllm:TokenManager ;
+    rdfs:label "Default Token Manager"@en ;
+    rdfs:comment "Default token manager for the CLI tool"@en ;
+    cllm:usesTokenCounter cllm:TiktokenCounter ;
+    cllm:hasTokenizationStrategy cllm:GPTTokenization ;
+    cllm:maxTokens 4096 .
+
+cllm:TiktokenCounter a cllm:TokenCounter ;
+    rdfs:label "Tiktoken Counter"@en ;
+    rdfs:comment "Token counter using the tiktoken library"@en .
+
+cllm:GPTTokenization a cllm:TokenizationStrategy ;
+    rdfs:label "GPT Tokenization"@en ;
+    rdfs:comment "Tokenization strategy for GPT models"@en .
+
+# Update CLLM Individual
+cllm:CLLM 
+    cllm:hasErrorHandler cllm:DefaultErrorHandler ;
+    cllm:hasTokenManager cllm:DefaultTokenManager .
+
+# SHACL Shapes for New Components
+cllm:RateLimitPolicyShape a sh:NodeShape ;
+    sh:targetClass cllm:RateLimitPolicy ;
+    sh:property [
+        sh:path cllm:hasRule ;
+        sh:minCount 1 ;
+    ] .
+
+cllm:ErrorHandlerShape a sh:NodeShape ;
+    sh:targetClass cllm:ErrorHandler ;
+    sh:property [
+        sh:path cllm:handlesErrorType ;
+        sh:minCount 1 ;
+    ] .
+
+cllm:TokenManagerShape a sh:NodeShape ;
+    sh:targetClass cllm:TokenManager ;
+    sh:property [
+        sh:path cllm:usesTokenCounter ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path cllm:hasTokenizationStrategy ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+# Documentation Classes
+cllm:Documentation a owl:Class ;
+    rdfs:label "Documentation"@en ;
+    rdfs:comment "Base class for documentation types"@en .
+
+cllm:ArchitectureDoc a cllm:Documentation ;
+    rdfs:label "Architecture Documentation"@en ;
+    rdfs:comment "Documentation describing system architecture and design"@en .
+
+cllm:OntologyDoc a cllm:Documentation ;
+    rdfs:label "Ontology Documentation"@en ;
+    rdfs:comment "Documentation for ontology structure and usage"@en .
+
+cllm:DocumentationSection a owl:Class ;
+    rdfs:label "Documentation Section"@en ;
+    rdfs:comment "A section within documentation"@en .
+
+# Documentation Properties
+cllm:hasSection a owl:ObjectProperty ;
+    rdfs:domain cllm:Documentation ;
+    rdfs:range cllm:DocumentationSection ;
+    rdfs:comment "Links documentation to its sections"@en .
+
+cllm:sectionContent a owl:DatatypeProperty ;
+    rdfs:domain cllm:DocumentationSection ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Content of a documentation section"@en .
+
+cllm:sectionOrder a owl:DatatypeProperty ;
+    rdfs:domain cllm:DocumentationSection ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Order of the section in the documentation"@en .
+
+# Architecture Documentation Sections
+cllm:ComponentInteractions a cllm:DocumentationSection ;
+    rdfs:label "Component Interactions"@en ;
+    rdfs:comment "Documentation of how system components interact"@en ;
+    cllm:sectionOrder 1 .
+
+cllm:DataFlows a cllm:DocumentationSection ;
+    rdfs:label "Data Flows"@en ;
+    rdfs:comment "Documentation of data flow patterns in the system"@en ;
+    cllm:sectionOrder 2 .
+
+cllm:PerformanceConsiderations a cllm:DocumentationSection ;
+    rdfs:label "Performance Considerations"@en ;
+    rdfs:comment "Documentation of performance aspects and optimizations"@en ;
+    cllm:sectionOrder 3 .
+
+cllm:DeploymentPatterns a cllm:DocumentationSection ;
+    rdfs:label "Deployment Patterns"@en ;
+    rdfs:comment "Documentation of deployment configurations and strategies"@en ;
+    cllm:sectionOrder 4 .
+
+# Ontology Documentation Sections
+cllm:OntologyExtensionPatterns a cllm:DocumentationSection ;
+    rdfs:label "Ontology Extension Patterns"@en ;
+    rdfs:comment "Documentation of patterns for extending the ontology"@en ;
+    cllm:sectionOrder 1 .
+
+cllm:ProviderModelGuide a cllm:DocumentationSection ;
+    rdfs:label "Provider and Model Guide"@en ;
+    rdfs:comment "Guide for adding new providers and models"@en ;
+    cllm:sectionOrder 2 .
+
+cllm:ValidationRules a cllm:DocumentationSection ;
+    rdfs:label "Validation Rules"@en ;
+    rdfs:comment "Documentation of SHACL validation rules"@en ;
+    cllm:sectionOrder 3 .
+
+# Update TODO Section
+cllm:DocumentationTodo a owl:Class ;
+    rdfs:label "Documentation TODO"@en ;
+    rdfs:comment "Planned documentation improvements"@en .
+
+cllm:APIIntegrationDocs a cllm:DocumentationTodo ;
+    rdfs:label "API Integration Documentation"@en ;
+    rdfs:comment "Add detailed documentation about API integration patterns, rate limiting, and error handling"@en .
+
+cllm:ImplementationDocs a cllm:DocumentationTodo ;
+    rdfs:label "Implementation Documentation"@en ;
+    rdfs:comment "Add documentation about token management, chunking strategies, and plugin system"@en .
+
+cllm:SecurityDocs a cllm:DocumentationTodo ;
+    rdfs:label "Security Documentation"@en ;
+    rdfs:comment "Add comprehensive security documentation including credential validation and key rotation"@en .
+
+cllm:DeveloperDocs a cllm:DocumentationTodo ;
+    rdfs:label "Developer Documentation"@en ;
+    rdfs:comment "Add contribution guidelines, coding standards, and testing documentation"@en .
+
+cllm:UserDocs a cllm:DocumentationTodo ;
+    rdfs:label "User Documentation"@en ;
+    rdfs:comment "Add advanced usage examples, troubleshooting guide, and customization options"@en .
+
+cllm:IntegrationDocs a cllm:DocumentationTodo ;
+    rdfs:label "Integration Documentation"@en ;
+    rdfs:comment "Add documentation about tool integration, CI/CD guidelines, and environment setup"@en .
+
+# SHACL Shapes for Documentation
+cllm:DocumentationShape a sh:NodeShape ;
+    sh:targetClass cllm:Documentation ;
+    sh:property [
+        sh:path cllm:hasSection ;
+        sh:minCount 1 ;
+    ] .
+
+cllm:DocumentationSectionShape a sh:NodeShape ;
+    sh:targetClass cllm:DocumentationSection ;
+    sh:property [
+        sh:path cllm:sectionContent ;
+        sh:minCount 1 ;
+    ] ;
+    sh:property [
+        sh:path cllm:sectionOrder ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+    ] .
+
+# TODO Section
+# - Add model deployment configurations
+# - Add command-line argument specifications
+# - Add error handling patterns
+# - Add pipeline processing patterns
+# - Add security constraints and validation rules
+# - Add support for non-OpenAI APIs
+# - Implement file-in-file-out processing patterns
+# - Add DSPy integration for prompt compilation
+# - Expand configuration options (temperature, etc.)
+# - Add environment variable configuration support
+
+# Update Installation Classes
+cllm:InstallationMethod a owl:Class ;
+    rdfs:label "Installation Method"@en ;
+    rdfs:comment "Method for installing the CLLM tool"@en .
+
+cllm:EnvironmentSetup a owl:Class ;
+    rdfs:label "Environment Setup"@en ;
+    rdfs:comment "Environment setup configuration and methods"@en .
+
+cllm:SetupScript a owl:Class ;
+    rdfs:label "Setup Script"@en ;
+    rdfs:comment "Script for automating environment setup"@en .
+
+# Properties for Installation
+cllm:hasSetupScript a owl:ObjectProperty ;
+    rdfs:domain cllm:EnvironmentSetup ;
+    rdfs:range cllm:SetupScript ;
+    rdfs:comment "Links environment setup to its setup script"@en .
+
+cllm:usesPackageManager a owl:ObjectProperty ;
+    rdfs:domain cllm:SetupScript ;
+    rdfs:range cllm:PackageManager ;
+    rdfs:comment "Links setup script to package managers it can use"@en .
+
+cllm:requiresConfirmation a owl:DatatypeProperty ;
+    rdfs:domain cllm:SetupScript ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "Whether the script requires user confirmation before proceeding"@en .
+
+# Package Manager Class and Individuals
+cllm:PackageManager a owl:Class ;
+    rdfs:label "Package Manager"@en ;
+    rdfs:comment "Package management system for Python dependencies"@en .
+
+cllm:Conda a cllm:PackageManager ;
+    rdfs:label "Conda Package Manager"@en ;
+    rdfs:comment "Conda package management system"@en .
+
+cllm:Venv a cllm:PackageManager ;
+    rdfs:label "Python venv"@en ;
+    rdfs:comment "Python's built-in virtual environment system"@en .
+
+cllm:Pip a cllm:PackageManager ;
+    rdfs:label "Pip Package Manager"@en ;
+    rdfs:comment "Python's package installer"@en .
+
+# Setup Script Individual
+cllm:SetupDevEnv a cllm:SetupScript ;
+    rdfs:label "Development Environment Setup Script"@en ;
+    rdfs:comment "Script for setting up development environment"@en ;
+    cllm:usesPackageManager cllm:Conda, cllm:Venv, cllm:Pip ;
+    cllm:requiresConfirmation true ;
+    cllm:scriptPath "ontology/setup_dev_env.sh"^^xsd:string .
+
+# Update CLLM Individual
+cllm:CLLM 
+    cllm:hasEnvironmentSetup [
+        a cllm:EnvironmentSetup ;
+        rdfs:label "CLLM Environment Setup"@en ;
+        cllm:hasSetupScript cllm:SetupDevEnv ;
+        cllm:hasDependencyFile "pyproject.toml"^^xsd:string
+    ] .
+
+# TODO Section Updates
+# [Previous TODOs...]
+# - Consolidate environment setup documentation
+# - Add validation for setup script parameters
+# - Consider adding environment setup tests 
