@@ -1,7 +1,0 @@
-argparse
-openai
-tiktoken
-gitignore_parser
-tqdm
-pyperclip
-openai

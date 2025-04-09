@@ -1,0 +1,81 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX meta: <./meta#>
+PREFIX metameta: <./metameta#>
+PREFIX problem: <./problem#>
+PREFIX solution: <./solution#>
+PREFIX conversation: <./conversation#>
+PREFIX process: <./process#>
+PREFIX agent: <./agent#>
+PREFIX time: <./time#>
+PREFIX install: <./install#>
+
+# Query 1: Framework usage counts
+SELECT ?framework (COUNT(*) as ?count)
+WHERE {
+  {
+    ?subject rdfs:subClassOf ?object .
+    FILTER(STRSTARTS(STR(?object), "./"))
+    BIND(REPLACE(STR(?object), ".*/([^#]*)#.*", "$1") AS ?framework)
+  } UNION {
+    ?subject rdfs:domain|rdfs:range ?object .
+    FILTER(STRSTARTS(STR(?object), "./"))
+    BIND(REPLACE(STR(?object), ".*/([^#]*)#.*", "$1") AS ?framework)
+  } UNION {
+    ?subject ?predicate ?object .
+    FILTER(STRSTARTS(STR(?subject), "./"))
+    BIND(REPLACE(STR(?subject), ".*/([^#]*)#.*", "$1") AS ?framework)
+  }
+  FILTER(?framework != "")
+}
+GROUP BY ?framework
+ORDER BY DESC(?count)
+
+---
+
+# Query 2: Detailed framework usage
+SELECT ?framework ?class ?property
+WHERE {
+  {
+    ?subject rdfs:subClassOf ?object .
+    FILTER(STRSTARTS(STR(?object), "./"))
+    BIND(REPLACE(STR(?object), ".*/([^#]*)#.*", "$1") AS ?framework)
+    BIND(?object AS ?class)
+    BIND(rdfs:subClassOf AS ?property)
+  } UNION {
+    ?subject rdfs:domain|rdfs:range ?object .
+    FILTER(STRSTARTS(STR(?object), "./"))
+    BIND(REPLACE(STR(?object), ".*/([^#]*)#.*", "$1") AS ?framework)
+    BIND(?object AS ?class)
+    BIND(?predicate AS ?property)
+  } UNION {
+    ?subject ?predicate ?object .
+    FILTER(STRSTARTS(STR(?subject), "./"))
+    BIND(REPLACE(STR(?subject), ".*/([^#]*)#.*", "$1") AS ?framework)
+    BIND(?subject AS ?class)
+    BIND(?predicate AS ?property)
+  }
+  FILTER(?framework != "")
+}
+ORDER BY ?framework ?class ?property
+
+---
+
+# Query 3: Find unused framework prefixes
+SELECT DISTINCT ?prefix
+WHERE {
+  VALUES ?prefix { "meta" "metameta" "problem" "solution" "conversation" "process" "agent" "time" "install" }
+  FILTER NOT EXISTS {
+    {
+      ?subject rdfs:subClassOf ?object .
+      FILTER(STRSTARTS(STR(?object), concat("./", ?prefix, "#")))
+    } UNION {
+      ?subject rdfs:domain|rdfs:range ?object .
+      FILTER(STRSTARTS(STR(?object), concat("./", ?prefix, "#")))
+    } UNION {
+      ?subject ?predicate ?object .
+      FILTER(STRSTARTS(STR(?subject), concat("./", ?prefix, "#")))
+    }
+  }
+} 

@@ -1,0 +1,252 @@
+@startuml cllm_ontology
+
+skinparam class {
+    BackgroundColor White
+    ArrowColor #666666
+    BorderColor #666666
+}
+
+note as N1
+  The CLITool is the central orchestrator,
+  managing all aspects of command processing
+  and maintaining loose coupling between
+  components through composition.
+end note
+
+' Core Classes
+class CLITool {
+    +label: String
+    +comment: String
+    +versionInfo: String
+}
+
+note right of CLITool
+  Version info follows semver
+  and tracks both CLI and
+  model compatibility
+end note
+
+class APIProvider {
+    +label: String
+    +comment: String
+    +rateLimits: Map
+    +retryPolicy: Map
+    +errorMapping: Map
+}
+
+note bottom of APIProvider
+  Supports multiple providers
+  (OpenAI, Azure, etc.) through
+  a common interface
+end note
+
+class Model {
+    +label: String
+}
+
+note right of Model
+  Models are versioned separately
+  from the tool to handle API
+  provider model updates
+end note
+
+class ProcessingMode {
+    +label: String
+    +comment: String
+    +streamingEnabled: Boolean
+    +chunkStrategy: String
+    +semanticBoundaries: List
+}
+
+note left of ProcessingMode
+  Processing modes determine how
+  input is chunked and handled,
+  allowing for streaming and
+  batch processing
+end note
+
+class Configuration {
+    +contextLength: Integer
+    +maxInferenceCalls: Integer
+    +retryStrategy: String
+    +rateLimitPolicy: Map
+    +timeoutSettings: Map
+}
+
+class Dependency {
+    +label: String
+    +version: String
+}
+
+class OptionalDependency {
+    +label: String
+    +version: String
+}
+
+class Documentation {
+    +label: String
+    +comment: String
+}
+
+class APICredentials {
+    +apiKey: String
+}
+
+class APIEndpoint {
+    +endpointUrl: URI
+}
+
+' CLI Argument Classes
+class CLIArgument {
+    +argumentName: String
+    +argumentDescription: String
+    +isRequired: Boolean
+    +defaultValue: String
+    +shortForm: String
+    +longForm: String
+    +examples: String
+    +validationPattern: String
+    +minValue: Integer
+    +maxValue: Integer
+    +allowedValues: List
+    +priority: Integer
+}
+
+class ArgumentGroup {
+    +groupName: String
+    +description: String
+    +priority: Integer
+}
+
+class ArgumentCategory {
+    +label: String
+    +comment: String
+}
+
+class ArgumentType {
+    +label: String
+    +validationRules: String
+}
+
+class ArgumentValidation {
+    +validationType: String
+    +validationRule: String
+    +errorMessage: String
+}
+
+' Security and Installation
+class SecurityPolicy {
+    +label: String
+    +comment: String
+}
+
+class InstallationMethod {
+    +label: String
+    +comment: String
+}
+
+' Additional Core Classes
+class ErrorHandler {
+    +logLevel: String
+    +errorFormat: String
+    +contextPreservation: Boolean
+}
+
+class PerformanceMonitor {
+    +chunkingMetrics: Map
+    +apiLatency: Duration
+    +memoryUsage: Long
+    +streamingStats: Map
+}
+
+class PluginManager {
+    +pluginRegistry: Map
+    +validationRules: List
+    +providerAdapters: Map
+}
+
+class TokenManager {
+    +countStrategy: String
+    +maxTokens: Integer
+    +reserveTokens: Integer
+    +modelContext: Integer
+}
+
+' Relationships
+CLITool "1" *-- "*" CLIArgument : hasArgument
+CLITool "1" *-- "*" Dependency : hasDependency
+CLITool "1" *-- "*" Documentation : hasDocumentation
+CLITool "1" *-- "*" APIProvider : hasProvider
+CLITool "1" *-- "*" Model : usesModel
+CLITool "1" *-- "*" ProcessingMode : hasProcessingMode
+CLITool "1" *-- "1" Configuration : hasConfiguration
+CLITool "1" *-- "*" SecurityPolicy : hasSecurityPolicy
+CLITool "1" *-- "*" InstallationMethod : hasInstallationMethod
+CLITool "1" *-- "1" ErrorHandler : usesErrorHandler
+CLITool "1" *-- "1" PerformanceMonitor : monitorsPerformance
+CLITool "1" *-- "1" PluginManager : managesPlugins
+CLITool "1" *-- "1" TokenManager : managesTokens
+
+APIProvider "1" *-- "1" APICredentials : hasCredentials
+APIProvider "1" *-- "1" APIEndpoint : hasEndpoint
+
+CLIArgument "1" *-- "1" ArgumentType : argumentType
+CLIArgument "*" -- "1" ArgumentCategory : inCategory
+CLIArgument "*" -- "*" CLIArgument : dependsOn
+CLIArgument "*" -- "*" CLIArgument : conflictsWith
+
+Documentation "*" -- "*" Dependency : requiresDependency
+
+Dependency <|-- OptionalDependency
+
+' New Relationships
+CLIArgument "*" -- "1" ArgumentGroup : belongsToGroup
+ArgumentType "1" -- "*" ArgumentValidation : hasValidation
+CLIArgument "*" -- "*" CLIArgument : suggestedWith
+CLIArgument "*" -- "*" ArgumentValidation : validatedBy
+
+' Argument Categories
+ArgumentCategory <|-- InputCategory
+ArgumentCategory <|-- ProcessingCategory
+ArgumentCategory <|-- OutputCategory
+ArgumentCategory <|-- APICategory
+ArgumentCategory <|-- PerformanceCategory
+
+' Argument Types
+ArgumentType <|-- IntegerType
+ArgumentType <|-- BooleanType
+ArgumentType <|-- StringType
+ArgumentType <|-- ListType
+
+' Processing Modes
+ProcessingMode <|-- FileChunkMode
+ProcessingMode <|-- SingleStringMode
+ProcessingMode <|-- StdinMode
+ProcessingMode <|-- DirectoryMode
+
+note "Arguments can suggest other arguments\nfor better UX and documentation" as N2
+CLIArgument "*" -- "*" CLIArgument : suggestedWith
+
+note "Validation rules are separated from\ntypes to allow for custom validation\nper argument instance" as N3
+ArgumentType "1" -- "*" ArgumentValidation : hasValidation
+
+note "Groups provide logical organization\nand help generate structured\ncommand documentation" as N4
+CLIArgument "*" -- "1" ArgumentGroup : belongsToGroup
+
+note "Error handling is centralized but\ncontext-aware for each component" as N5
+ErrorHandler -- ProcessingMode
+ErrorHandler -- APIProvider
+
+note "Performance monitoring tracks\nall major processing stages" as N6
+PerformanceMonitor -- ProcessingMode
+PerformanceMonitor -- APIProvider
+
+note "Plugin system allows extension\nof core functionality" as N7
+PluginManager -- ProcessingMode
+PluginManager -- APIProvider
+
+note "Token management is critical\nfor all processing stages" as N8
+TokenManager -- ProcessingMode
+TokenManager -- Configuration
+
+@enduml 

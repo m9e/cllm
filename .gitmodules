@@ -1,0 +1,3 @@
+[submodule "ontology-framework"]
+	path = ontology-framework
+	url = https://github.com/louspringer/ontology-framework

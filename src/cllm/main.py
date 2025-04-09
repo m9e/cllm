@@ -4,7 +4,7 @@
 
 # For examples see https://github.com/m9e/cllm notebook
 
-# (c) Copyright Matthew Wallace 2024-2025; Licensed under Apache-2.0 Text version: https://www.apache.org/licenses/LICENSE-2.0.txt (see LICENSE)
+# (c) Copyright Matthew Wallace 2024; Licensed under Apache-2.0 Text version: https://www.apache.org/licenses/LICENSE-2.0.txt (see LICENSE)
 
 import os
 import sys
@@ -19,7 +19,18 @@ from tqdm import tqdm
 from typing import List, Optional, Generator, Tuple
 import pyperclip
 import subprocess
-import httpx
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables from .env files
+# Search for .env file starting from current directory up to root
+env_file = find_dotenv()
+if env_file:
+    load_dotenv(env_file)
+else:
+    # Try home directory as fallback
+    home_env = os.path.expanduser("~/.env")
+    if os.path.exists(home_env):
+        load_dotenv(home_env)
 
 DEFAULT_SYSTEM = (
     "You are an AI used to do thing in a command line pipeline. "
@@ -254,21 +265,9 @@ def main():
     parser.add_argument('-M', '--mode', choices=['default', 'azure'], default='default', help='Mode to run the script in: "default" or "azure" (default: default)')
     parser.add_argument('-C', '--clipboard', action='store_true', help='Get the context from the clipboard. Works with -c for large inputs.')
     parser.add_argument('-t', '--temperature', type=float, help='Temperature for the model')
-    parser.add_argument('-T', '--timeout', type=int, help='Timeout in seconds of individual model requests (default: 30)')
     parser.add_argument('-gcm', '--git-commit-message', action='store_true', help='Generate Git commit message')
     parser.add_argument('inline_prompt', nargs=argparse.REMAINDER, help='Unmatched arguments to be used as the prompt if -p is not provided')
     args = parser.parse_args()
-
-    # Set default timeout
-    REQUEST_TIMEOUT = 30
-
-    # Override with command-line argument if provided and valid
-    if args.timeout is not None:
-        try:
-            REQUEST_TIMEOUT = int(args.timeout)
-        except ValueError:
-            print(f"Error: Invalid timeout value '{args.timeout}'. Must be an integer.", file=sys.stderr)
-            sys.exit(1)
 
     # Set verbose and very_verbose flags
     if args.very_verbose:
@@ -334,8 +333,7 @@ def main():
             api_key = 'NO_KEY_SUPPLIED'
         client = openai.OpenAI(
             api_key=api_key,
-            base_url=args.base_url,
-            timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None)
+            base_url=args.base_url
         )
     elif args.mode == 'azure' or os.getenv('OPENAI_API_TYPE') == 'azure' or (not os.getenv('OPENAI_API_KEY') and os.getenv('AZURE_OPENAI_API_KEY')):
         # Load environment variables
@@ -344,17 +342,16 @@ def main():
         client = AzureOpenAI(
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
             api_version="2023-12-01-preview",
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None)
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
         )
     else:
         base_url = os.getenv('OPENAI_API_BASE') or None
         api_key = os.getenv('OPENAI_API_KEY')
 
         if base_url:
-            client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None))
+            client = openai.OpenAI(api_key=api_key, base_url=base_url)
         else:
-            client = openai.OpenAI(api_key=api_key, timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None))
+            client = openai.OpenAI(api_key=api_key)
 
     if args.git_commit_message:
         gcm_feature(args, client)
@@ -402,7 +399,6 @@ def main():
         print(f"extensions is {extensions}", file=sys.stderr)
         print(f"token_count_mode is {args.tc}", file=sys.stderr)
         print(f"model is {args.model}", file=sys.stderr)
-        print(f"timeout is {args.timeout}", file=sys.stderr)
 
     if args.directory:
         gitignore_map = load_gitignore_files(args.directory)

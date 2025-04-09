@@ -1,0 +1,74 @@
+@startuml cllm_activity
+
+skinparam activity {
+    BackgroundColor White
+    BorderColor #666666
+    ArrowColor #666666
+}
+
+note right: Activity diagram shows the main processing flow\nof the CLI tool, emphasizing the three major\nphases: input processing, core processing,\nand output generation
+
+start
+
+:Parse Command Line Arguments;
+note right: Validates all arguments\nand their relationships
+
+if (Input Mode?) then (stdin)
+    :Read from Standard Input;
+    note left: Supports streaming\nand piping
+else if (directory)
+    :Scan Directory;
+    note right: Uses glob patterns\nfor filtering
+    :Filter Files;
+    :Read Files;
+else (single string)
+    :Process Single String;
+    note right: Direct prompt\nprocessing
+endif
+
+:Calculate Context Length;
+note left: Adjusts chunk size based on\nmodel context window and\ntoken counting algorithm
+
+partition "Processing" {
+    note right: Core processing loop handles\nchunking and API interaction
+    
+    :Split Input into Chunks;
+    note right: Maintains semantic\ncoherence
+    
+    while (More Chunks?) is (yes)
+        :Process Next Chunk;
+        if (Token Count > Max?) then (yes)
+            :Truncate Chunk;
+            note left: Preserves token\nlimits while keeping\ncontext intact
+        endif
+        :Call API Provider;
+        note right: Handles rate limiting\nand retries
+        :Process Response;
+    endwhile (no)
+}
+
+partition "Output Generation" {
+    note right: Output is configurable based\non command line arguments
+    
+    if (Summary Requested?) then (yes)
+        :Generate Summary;
+        note left: Aggregates results\nfrom all chunks
+    endif
+
+    if (Stats Requested?) then (yes)
+        :Generate Statistics;
+        note right: Includes token usage\nand timing info
+    endif
+}
+
+if (Error Occurred?) then (yes)
+    :Log Error;
+    note right: Structured error\nlogging with context
+    stop
+else (no)
+    :Return Results;
+    note right: Formats output based\non requested mode
+    stop
+endif
+
+@enduml 

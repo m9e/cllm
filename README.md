@@ -1,26 +1,56 @@
 # cllm - [C]ommand-line [LLM] usage
 
+## Installation
+
+To install cllm:
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/m9e/cllm.git
+   cd cllm
+   ```
+2. Install using pipx (recommended):
+
+   ```bash
+   pipx install .
+   ```
+
+   Or install with pip:
+
+   ```bash
+   pip install .
+   ```
+
+   For development:
+
+   ```bash
+   pip install -e .
+   ```
+
+Dependencies are managed through `pyproject.toml` and will be automatically installed.
+
 ## Quickstart
 
 To get started with cllm:
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/m9e/cllm.git
    cd cllm
    ```
-
 2. Run the installation script:
+
    ```
    sudo ./install_cllm.sh
    ```
-
 3. Set up your Azure OpenAI credentials:
+
    ```
    export AZURE_OPENAI_API_KEY=your_api_key_here
    export AZURE_OPENAI_ENDPOINT=your_azure_endpoint_here
    ```
-
 4. You can now use the `cllm` command from anywhere on your system.
 
 ## GPT o1 notes
@@ -35,6 +65,64 @@ For the `o1` openai models:
 ## Usage
 
 See [examples in Notebook form](sample_usage.ipynb)
+
+Note: To run the example notebook, you'll need additional dependencies:
+
+```bash
+pip install jupyter
+```
+
+Or with conda:
+
+```bash
+conda install jupyter
+```
+
+## Configuration
+
+CLLM uses standard `.env` files for configuration. It will look for credentials in the following order:
+
+1. `.env` file in the current directory
+2. `.env` in parent directories (searching upwards)
+3. `~/.env` (global fallback)
+
+Create a `.env` file with your Azure OpenAI credentials:
+
+```bash
+AZURE_OPENAI_API_KEY=your_api_key_here
+AZURE_OPENAI_ENDPOINT=your_azure_endpoint_here
+```
+
+### Getting Your Azure OpenAI Credentials
+
+1. Go to the [Azure Portal](https://portal.azure.com)
+2. Navigate to your Azure OpenAI resource
+3. Find your API key:
+   - Go to "Keys and Endpoint" in the left menu
+   - Copy either "KEY 1" or "KEY 2"
+4. Find your endpoint:
+   - It will look like: `https://<your-resource-name>.openai.azure.com/`
+
+### Security Notes
+
+- Never commit `.env` files to version control
+- Add `.env` to your `.gitignore`
+- Consider using a secrets manager for production environments
+- Rotate your API keys periodically
+- Use the minimum required permissions for your Azure OpenAI resource
+
+## Roadmap/TODO
+
+- [] Test/fix the extend-prompt/summarizer functions
+- [] Fix progress bar stuff
+
+## Immediate Improvement ideas
+
+- [] Leverage non-OpenAI APIs
+- [] File-In-File-Out (eg, input.txt -> input.txt.llm, input2.txt -> input2.txt.llm or something)
+- [] Add some examples and add DSPy to "compile" prompts for flexibility?
+- [] Allow user to pass more params to endpoint (eg, temperature)
+- [] Allow user to specify certain params like BASE_URL via env vars (eg `CLLM_BASE_URL`)
 
 ```
 mikoshi:cllm matt$ cllm -h
@@ -86,16 +174,3 @@ options:
   -I [INPUT ...], --input [INPUT ...]
                         Input argument; usually read from stdin or provided as additional arguments
 ```
-
-## Roadmap/TODO
-
-- [] Test/fix the extend-prompt/summarizer functions
-- [] Fix progress bar stuff
-
-## Immediate Improvement ideas
-
-- [] Leverage non-OpenAI APIs
-- [] File-In-File-Out (eg, input.txt -> input.txt.llm, input2.txt -> input2.txt.llm or something)
-- [] Add some examples and add DSPy to "compile" prompts for flexibility?
-- [] Allow user to pass more params to endpoint (eg, temperature)
-- [] Allow user to specify certain params like BASE_URL via env vars (eg `CLLM_BASE_URL`)

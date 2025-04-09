@@ -1,0 +1,46 @@
+@prefix meta: <./meta#> .
+@prefix metameta: <./metameta#> .
+@prefix problem: <./problem#> .
+@prefix solution: <./solution#> .
+@prefix conversation: <./conversation#> .
+@prefix git: <./git#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+git:Repository a owl:Class ;
+    rdfs:label "Git Repository"@en ;
+    rdfs:comment "A Git version control repository"@en .
+
+git:Remote a owl:Class ;
+    rdfs:label "Git Remote"@en ;
+    rdfs:comment "A remote repository location"@en .
+
+git:hasRemote a owl:ObjectProperty ;
+    rdfs:domain git:Repository ;
+    rdfs:range git:Remote ;
+    rdfs:comment "Links a repository to its remote locations"@en .
+
+git:defaultRemote a owl:ObjectProperty ;
+    rdfs:subPropertyOf git:hasRemote ;
+    rdfs:comment "Specifies the default remote for a repository"@en .
+
+git:remoteName a owl:DatatypeProperty ;
+    rdfs:domain git:Remote ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The name of the remote (e.g. 'origin')"@en .
+
+git:remoteURL a owl:DatatypeProperty ;
+    rdfs:domain git:Remote ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The URL of the remote repository"@en .
+
+# Example individual
+git:ExampleRepo a git:Repository ;
+    rdfs:label "Example Repository"@en ;
+    git:defaultRemote [
+        a git:Remote ;
+        git:remoteName "origin" ;
+        git:remoteURL "https://github.com/user/repo.git"
+    ] . 

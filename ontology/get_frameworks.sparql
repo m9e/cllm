@@ -1,0 +1,16 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT DISTINCT ?prefix ?framework
+WHERE {
+  # Get all prefix declarations from the ontology
+  ?s ?p ?o .
+  FILTER(STRSTARTS(STR(?s), "http://www.w3.org/2002/07/owl#imports") || 
+         REGEX(STR(?s), "^@prefix\\s+([^:]+):\\s*<([^>]+)>\\s*\\.$"))
+  BIND(REPLACE(STR(?s), "^@prefix\\s+([^:]+):\\s*<([^>]+)>\\s*\\.$", "$1") AS ?prefix)
+  BIND(REPLACE(STR(?s), "^@prefix\\s+([^:]+):\\s*<([^>]+)>\\s*\\.$", "$2") AS ?framework)
+  # Only get framework ontologies (exclude standard prefixes)
+  FILTER(?prefix IN ("meta", "metameta", "problem", "solution", "conversation", 
+                    "process", "agent", "time", "install"))
+}
+ORDER BY ?prefix 
