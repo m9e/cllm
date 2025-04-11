@@ -397,7 +397,9 @@ def main():
     try:
         encoder = tiktoken.encoding_for_model(args.model)
     except Exception as e:
-        print(f"Tokenizer for splits: could not load tokenizer for model {args.model} so using gpt-4; reducing context length by 5% to prevent overflows", file=sys.stderr)
+        # Only print the warning if verbose mode is enabled
+        if args.verbose:
+            print(f"Tokenizer for splits: could not load tokenizer for model {args.model} so using gpt-4; reducing context length by 5% to prevent overflows", file=sys.stderr)
         encoder = tiktoken.encoding_for_model('gpt-4')
         args.context_length = int(args.context_length * 0.95)
 
