@@ -52,6 +52,29 @@ def is_truthy(value: Optional[str]) -> bool:
         return False
     return value.strip().lower() in TRUTHY_STRINGS
 
+
+def configure_openai_http_client(client_obj, disable_ssl_verification: bool, verbose: bool = False) -> None:
+    """Mutate the underlying httpx client OpenAI instantiates to control SSL verification."""
+    http_client = getattr(client_obj, "_client", None)
+    if http_client is None:
+        return
+
+    setattr(openai, "client", http_client)
+    setattr(http_client, "verify", not disable_ssl_verification)
+
+    if not disable_ssl_verification:
+        return
+
+    transport = getattr(http_client, "_transport", None)
+    if transport is None:
+        return
+
+    try:
+        http_client._transport = httpx.HTTPTransport(verify=False)
+    except Exception as exc:
+        if verbose:
+            print(f"Warning: unable to disable SSL verification: {exc}", file=sys.stderr)
+
 def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None, None]:
     """Read a file in chunks of specified size."""
     with open(file_path, 'r') as file:
@@ -295,10 +318,7 @@ def main():
     disable_ssl_verification = any(
         is_truthy(os.getenv(var)) for var in ("CLLM_VERIFY_SSL", "OPENAI_VERIFY_SSL", "VERIFY_SSL")
     )
-    http_client = httpx.Client(verify=False, timeout=timeout_config) if disable_ssl_verification else None
     client_kwargs = {"timeout": timeout_config}
-    if http_client is not None:
-        client_kwargs["http_client"] = http_client
 
     # Set verbose and very_verbose flags
     if args.very_verbose:
@@ -369,6 +389,7 @@ def main():
             base_url=args.base_url,
             **client_kwargs,
         )
+        configure_openai_http_client(client, disable_ssl_verification, args.verbose)
     elif args.mode == 'azure' or os.getenv('OPENAI_API_TYPE') == 'azure' or (not os.getenv('OPENAI_API_KEY') and os.getenv('AZURE_OPENAI_API_KEY')):
         # Load environment variables
         from openai import AzureOpenAI
@@ -379,6 +400,7 @@ def main():
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             **client_kwargs,
         )
+        configure_openai_http_client(client, disable_ssl_verification, args.verbose)
     else:
         base_url = os.getenv('OPENAI_API_BASE') or None
         api_key = os.getenv('OPENAI_API_KEY')
@@ -387,6 +409,7 @@ def main():
             client = openai.OpenAI(api_key=api_key, base_url=base_url, **client_kwargs)
         else:
             client = openai.OpenAI(api_key=api_key, **client_kwargs)
+        configure_openai_http_client(client, disable_ssl_verification, args.verbose)
 
     if args.git_commit_message:
         gcm_feature(args, client)
