@@ -43,6 +43,15 @@ DEFAULT_SYSTEM = (
     "As a rule if you are outputting code, as this is CLI, that means you must avoid ```bash``` type enclosures unless specifically asked for or they were part of the context."
 )
 
+TRUTHY_STRINGS = {"1", "true", "t", "yes", "y", "on"}
+
+
+def is_truthy(value: Optional[str]) -> bool:
+    """Return True if the provided string represents a truthy value."""
+    if value is None:
+        return False
+    return value.strip().lower() in TRUTHY_STRINGS
+
 def read_file_in_chunks(file_path: str, chunk_size: int) -> Generator[str, None, None]:
     """Read a file in chunks of specified size."""
     with open(file_path, 'r') as file:
@@ -282,6 +291,15 @@ def main():
             print(f"Error: Invalid timeout value '{args.timeout}'. Must be an integer.", file=sys.stderr)
             sys.exit(1)
 
+    timeout_config = httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None)
+    disable_ssl_verification = any(
+        is_truthy(os.getenv(var)) for var in ("CLLM_VERIFY_SSL", "OPENAI_VERIFY_SSL", "VERIFY_SSL")
+    )
+    http_client = httpx.Client(verify=False, timeout=timeout_config) if disable_ssl_verification else None
+    client_kwargs = {"timeout": timeout_config}
+    if http_client is not None:
+        client_kwargs["http_client"] = http_client
+
     # Set verbose and very_verbose flags
     if args.very_verbose:
         args.verbose = True
@@ -321,8 +339,10 @@ def main():
             print("Error: Temperature must be a number.", file=sys.stderr)
             sys.exit(1)
 
-    if not args.base_url and os.getenv('CLLM_BASE_URL'):
-        args.base_url = os.getenv('CLLM_BASE_URL')
+    if not args.base_url:
+        env_base_url = os.getenv('CLLM_BASE_URL') or os.getenv('CLLM_BASE_URI')
+        if env_base_url:
+            args.base_url = env_base_url
 
     if not args.model:
         if args.base_url:
@@ -347,7 +367,7 @@ def main():
         client = openai.OpenAI(
             api_key=api_key,
             base_url=args.base_url,
-            timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None)
+            **client_kwargs,
         )
     elif args.mode == 'azure' or os.getenv('OPENAI_API_TYPE') == 'azure' or (not os.getenv('OPENAI_API_KEY') and os.getenv('AZURE_OPENAI_API_KEY')):
         # Load environment variables
@@ -357,16 +377,16 @@ def main():
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
             api_version="2023-12-01-preview",
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None)
+            **client_kwargs,
         )
     else:
         base_url = os.getenv('OPENAI_API_BASE') or None
         api_key = os.getenv('OPENAI_API_KEY')
 
         if base_url:
-            client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None))
+            client = openai.OpenAI(api_key=api_key, base_url=base_url, **client_kwargs)
         else:
-            client = openai.OpenAI(api_key=api_key, timeout=httpx.Timeout(connect=3.0, read=REQUEST_TIMEOUT, write=120.0, pool=None))
+            client = openai.OpenAI(api_key=api_key, **client_kwargs)
 
     if args.git_commit_message:
         gcm_feature(args, client)
@@ -581,4 +601,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
